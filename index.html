@@ -4,13 +4,29 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Service Physics - Resource Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         :root {
-            --primary-blue: #2563eb;
-            --primary-blue-dark: #1d4ed8;
+            /* Service Physics Brand Colors */
+            --sp-navy: #1e3a5f;
+            --sp-navy-light: #2a4a73;
+            --sp-navy-dark: #152a45;
+            --sp-sage: #7a9e9e;
+            --sp-sage-light: #9fbfbf;
+            --sp-sage-dark: #5a7e7e;
+
+            /* Primary colors mapped to brand */
+            --primary: #1e3a5f;
+            --primary-light: #2a4a73;
+            --primary-dark: #152a45;
+            --secondary: #7a9e9e;
+
+            /* Neutrals */
             --gray-50: #f8fafc;
             --gray-100: #f1f5f9;
             --gray-200: #e2e8f0;
@@ -21,19 +37,214 @@
             --gray-700: #334155;
             --gray-800: #1e293b;
             --gray-900: #0f172a;
+
+            /* Status colors */
             --success: #10b981;
             --warning: #f59e0b;
             --danger: #ef4444;
             --info: #06b6d4;
             --purple: #8b5cf6;
+
+            /* Legacy support */
+            --primary-blue: var(--sp-navy);
+            --primary-blue-dark: var(--sp-navy-dark);
         }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: var(--gray-100);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--gray-50);
             color: var(--gray-800);
-            line-height: 1.5;
+            line-height: 1.6;
         }
-        .dashboard { max-width: 1800px; margin: 0 auto; padding: 24px; }
+
+        /* App Layout with Sidebar */
+        .app-container { display: flex; min-height: 100vh; }
+
+        /* Sidebar Navigation */
+        .sidebar {
+            width: 260px;
+            background: var(--sp-navy);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            z-index: 100;
+            transition: transform 0.3s ease;
+        }
+        .sidebar-header {
+            padding: 24px 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .sidebar-logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .sidebar-logo svg {
+            width: 36px;
+            height: 36px;
+        }
+        .sidebar-logo-text {
+            display: flex;
+            flex-direction: column;
+            line-height: 1.2;
+        }
+        .sidebar-logo-text .service {
+            font-size: 16px;
+            font-weight: 700;
+            color: white;
+        }
+        .sidebar-logo-text .physics {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--sp-sage);
+        }
+        .sidebar-nav {
+            flex: 1;
+            padding: 16px 12px;
+            overflow-y: auto;
+        }
+        .nav-section {
+            margin-bottom: 24px;
+        }
+        .nav-section-title {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--sp-sage);
+            padding: 0 12px;
+            margin-bottom: 8px;
+        }
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            color: rgba(255,255,255,0.7);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+            background: none;
+            width: 100%;
+            text-align: left;
+        }
+        .nav-item:hover {
+            background: rgba(255,255,255,0.1);
+            color: white;
+        }
+        .nav-item.active {
+            background: rgba(255,255,255,0.15);
+            color: white;
+        }
+        .nav-item-icon {
+            font-size: 18px;
+            width: 24px;
+            text-align: center;
+        }
+        .nav-item-badge {
+            margin-left: auto;
+            background: var(--danger);
+            color: white;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+        .sidebar-footer {
+            padding: 16px 20px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+        .sync-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: var(--sp-sage);
+        }
+        .sync-dot-sidebar {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--success);
+            animation: pulse 2s infinite;
+        }
+
+        /* Main Content Area */
+        .main-content {
+            flex: 1;
+            margin-left: 260px;
+            min-height: 100vh;
+        }
+
+        /* Top Header Bar */
+        .top-header {
+            background: white;
+            border-bottom: 1px solid var(--gray-200);
+            padding: 16px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+        .page-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--gray-800);
+        }
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .dashboard { max-width: 1600px; margin: 0 auto; padding: 32px; }
+
+        /* Mobile sidebar toggle */
+        .mobile-menu-btn {
+            display: none;
+            padding: 8px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 24px;
+        }
+
+        @media (max-width: 1024px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+            .sidebar.open {
+                transform: translateX(0);
+            }
+            .main-content {
+                margin-left: 0;
+            }
+            .mobile-menu-btn {
+                display: block;
+            }
+            .sidebar-overlay {
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0,0,0,0.5);
+                z-index: 99;
+            }
+            .sidebar-overlay.open {
+                display: block;
+            }
+        }
 
         /* Loading state */
         .loading-overlay {
@@ -54,7 +265,7 @@
         .header {
             display: flex; justify-content: space-between; align-items: center;
             margin-bottom: 24px; padding: 20px 24px;
-            background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+            background: linear-gradient(135deg, var(--sp-navy) 0%, var(--sp-navy-light) 100%);
             border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
         .header h1 { font-size: 24px; font-weight: 700; color: white; display: flex; align-items: center; gap: 12px; }
@@ -276,7 +487,7 @@
         .month-icon.feb { background: linear-gradient(135deg, #fce7f3, #fbcfe8); }
         .month-icon.mar { background: linear-gradient(135deg, #d1fae5, #a7f3d0); }
         .month-icon.apr { background: linear-gradient(135deg, #fef3c7, #fde68a); }
-        .month-icon.current { background: linear-gradient(135deg, #2563eb, #1d4ed8); color: white; }
+        .month-icon.current { background: linear-gradient(135deg, var(--sp-navy), var(--sp-navy-dark)); color: white; }
         .month-name { font-size: 18px; font-weight: 700; color: var(--gray-800); }
         .month-year { font-size: 13px; color: var(--gray-500); }
         .month-badge { font-size: 11px; padding: 4px 12px; border-radius: 20px; font-weight: 600; }
@@ -380,51 +591,130 @@
         <div class="error-message" id="errorMessage" style="display: none;"></div>
     </div>
 
-    <div class="dashboard">
-        <div class="header">
-            <h1>
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="white"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/></svg>
-                Service Physics - Resource Dashboard
-            </h1>
-            <div class="header-meta">
-                <div class="sync-status">
-                    <div class="sync-dot" id="syncDot"></div>
-                    <span id="syncText">Synced with ClickUp</span>
-                </div>
-                <span class="last-updated">Last updated: <span id="lastUpdated"></span></span>
-                <div class="dropdown">
-                    <button class="header-btn">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-                        Export
-                    </button>
-                    <div class="dropdown-content">
-                        <a class="dropdown-item" onclick="exportToExcel()">Export to Excel</a>
-                        <a class="dropdown-item" onclick="exportToCSV()">Export to CSV</a>
-                        <a class="dropdown-item" onclick="window.print()">Print Dashboard</a>
+    <!-- Mobile Sidebar Overlay -->
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+    <!-- App Container -->
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">
+                    <!-- Service Physics Logo SVG -->
+                    <svg width="36" height="36" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M35 15L15 35L35 55L55 35L35 15Z" fill="white" transform="rotate(-45 35 35)"/>
+                        <path d="M65 45L45 65L65 85L85 65L65 45Z" fill="#7a9e9e" transform="rotate(-45 65 65)"/>
+                    </svg>
+                    <div class="sidebar-logo-text">
+                        <span class="service">SERVICE</span>
+                        <span class="physics">PHYSICS</span>
                     </div>
                 </div>
-                <button class="header-btn primary" onclick="refreshData()">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
-                    </svg>
-                    Refresh
-                </button>
             </div>
-        </div>
 
-        <div class="tabs">
-            <button class="tab active" onclick="switchTab('overview')">Overview</button>
-            <button class="tab" onclick="switchTab('alerts')">Alerts</button>
-            <button class="tab" onclick="switchTab('clients')">By Client</button>
-            <button class="tab" onclick="switchTab('resources')">Resource Capacity</button>
-            <button class="tab" onclick="switchTab('contracts')">Contracts</button>
-            <button class="tab" onclick="switchTab('pipeline')">Converted vs Funnel</button>
-            <button class="tab" onclick="switchTab('salesfunnel')">Sales Pipeline</button>
-            <button class="tab" onclick="switchTab('recruitment')">Recruitment</button>
-            <button class="tab" onclick="switchTab('timeline')">Timeline</button>
-            <button class="tab" onclick="switchTab('team')">Team View</button>
-            <button class="tab" onclick="switchTab('gantt')">📊 Gantt Chart</button>
-        </div>
+            <nav class="sidebar-nav">
+                <div class="nav-section">
+                    <div class="nav-section-title">Dashboard</div>
+                    <button class="nav-item active" onclick="switchTab('overview')">
+                        <span class="nav-item-icon">📊</span>
+                        Overview
+                    </button>
+                    <button class="nav-item" onclick="switchTab('alerts')">
+                        <span class="nav-item-icon">🔔</span>
+                        Alerts
+                        <span class="nav-item-badge" id="alertBadge" style="display: none;">0</span>
+                    </button>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Resources</div>
+                    <button class="nav-item" onclick="switchTab('clients')">
+                        <span class="nav-item-icon">🏢</span>
+                        By Client
+                    </button>
+                    <button class="nav-item" onclick="switchTab('resources')">
+                        <span class="nav-item-icon">👥</span>
+                        Capacity
+                    </button>
+                    <button class="nav-item" onclick="switchTab('team')">
+                        <span class="nav-item-icon">🎯</span>
+                        Team View
+                    </button>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Operations</div>
+                    <button class="nav-item" onclick="switchTab('contracts')">
+                        <span class="nav-item-icon">📋</span>
+                        Contracts
+                    </button>
+                    <button class="nav-item" onclick="switchTab('pipeline')">
+                        <span class="nav-item-icon">🔄</span>
+                        Pipeline
+                    </button>
+                    <button class="nav-item" onclick="switchTab('gantt')">
+                        <span class="nav-item-icon">📅</span>
+                        Gantt Chart
+                    </button>
+                    <button class="nav-item" onclick="switchTab('timeline')">
+                        <span class="nav-item-icon">⏱️</span>
+                        Timeline
+                    </button>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Growth</div>
+                    <button class="nav-item" onclick="switchTab('salesfunnel')">
+                        <span class="nav-item-icon">💼</span>
+                        Sales Pipeline
+                    </button>
+                    <button class="nav-item" onclick="switchTab('recruitment')">
+                        <span class="nav-item-icon">🎓</span>
+                        Recruitment
+                    </button>
+                </div>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="sync-info">
+                    <div class="sync-dot-sidebar" id="syncDot"></div>
+                    <span id="syncText">Synced with ClickUp</span>
+                </div>
+                <div style="font-size: 11px; color: var(--sp-sage); margin-top: 8px;">
+                    Last updated: <span id="lastUpdated"></span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="top-header">
+                <div style="display: flex; align-items: center; gap: 16px;">
+                    <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
+                    <h1 class="page-title" id="pageTitle">Overview</h1>
+                </div>
+                <div class="header-actions">
+                    <div class="dropdown">
+                        <button class="btn btn-secondary">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                            Export
+                        </button>
+                        <div class="dropdown-content">
+                            <a class="dropdown-item" onclick="exportToExcel()">Export to Excel</a>
+                            <a class="dropdown-item" onclick="exportToCSV()">Export to CSV</a>
+                            <a class="dropdown-item" onclick="window.print()">Print Dashboard</a>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" onclick="refreshData()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+                        </svg>
+                        Refresh
+                    </button>
+                </div>
+            </header>
+
+            <div class="dashboard">
 
         <!-- OVERVIEW TAB -->
         <div id="overview" class="tab-content active">
@@ -864,7 +1154,9 @@
             <p>Data synced from <a href="https://app.clickup.com/2383252/v/l/6-901112841124-1" target="_blank">ClickUp</a> | Service Physics Resource Management</p>
             <p style="margin-top: 8px; font-size: 11px; color: var(--gray-400);">Dashboard v3.1 | Auto-refreshes every 5 minutes</p>
         </div>
-    </div>
+            </div><!-- /.dashboard -->
+        </main><!-- /.main-content -->
+    </div><!-- /.app-container -->
 
     <script>
         // ============================================
@@ -1135,11 +1427,58 @@
             });
         }
 
+        // Toggle sidebar for mobile
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            sidebar.classList.toggle('open');
+            overlay.classList.toggle('open');
+        }
+
+        // Tab titles for page header
+        const tabTitles = {
+            'overview': 'Overview',
+            'alerts': 'Alerts & Notifications',
+            'clients': 'Clients',
+            'resources': 'Resource Capacity',
+            'team': 'Team View',
+            'contracts': 'Contracts',
+            'pipeline': 'Pipeline',
+            'gantt': 'Gantt Chart',
+            'timeline': 'Timeline',
+            'salesfunnel': 'Sales Pipeline',
+            'recruitment': 'Recruitment'
+        };
+
         function switchTab(tabId) {
+            // Update old tab buttons (if any exist)
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            // Update sidebar nav items
+            document.querySelectorAll('.nav-item').forEach(t => t.classList.remove('active'));
+            // Update tab content
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-            document.querySelector(`[onclick="switchTab('${tabId}')"]`).classList.add('active');
-            document.getElementById(tabId).classList.add('active');
+
+            // Activate the clicked nav item
+            const navItem = document.querySelector(`.nav-item[onclick="switchTab('${tabId}')"]`);
+            if (navItem) navItem.classList.add('active');
+
+            // Activate the tab content
+            const tabContent = document.getElementById(tabId);
+            if (tabContent) tabContent.classList.add('active');
+
+            // Update page title
+            const pageTitle = document.getElementById('pageTitle');
+            if (pageTitle && tabTitles[tabId]) {
+                pageTitle.textContent = tabTitles[tabId];
+            }
+
+            // Close mobile sidebar after selection
+            if (window.innerWidth <= 1024) {
+                const sidebar = document.getElementById('sidebar');
+                const overlay = document.getElementById('sidebarOverlay');
+                sidebar.classList.remove('open');
+                overlay.classList.remove('open');
+            }
         }
 
         // ============================================
@@ -2259,7 +2598,7 @@
                     labels: ['Engagement Leads', 'Project Leads', 'Special Projects', 'To Be Hired'],
                     datasets: [{
                         data: [roles.EL, roles.PL, roles.Special, roles.TBH],
-                        backgroundColor: ['#2563eb', '#10b981', '#8b5cf6', '#ef4444'],
+                        backgroundColor: ['#1e3a5f', '#7a9e9e', '#8b5cf6', '#ef4444'],
                         borderWidth: 0
                     }]
                 },
@@ -2401,8 +2740,8 @@
                             label: 'Team Size',
                             data: clients.slice(0, 8).map(c => allocations.filter(a => a.client === c).length),
                             backgroundColor: 'rgba(37, 99, 235, 0.2)',
-                            borderColor: '#2563eb',
-                            pointBackgroundColor: '#2563eb'
+                            borderColor: '#1e3a5f',
+                            pointBackgroundColor: '#1e3a5f'
                         }]
                     },
                     options: {
