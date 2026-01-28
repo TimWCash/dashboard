@@ -581,14 +581,126 @@
         .save-indicator.error { color: var(--danger); }
         .inline-edit-btn { padding: 4px 8px; font-size: 11px; background: var(--gray-100); border: 1px solid var(--gray-200); border-radius: 4px; cursor: pointer; color: var(--gray-600); }
         .inline-edit-btn:hover { background: var(--gray-200); }
+
+        /* Upload Modal Styles */
+        .upload-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .upload-modal.active { display: flex; }
+        .upload-modal-content {
+            background: white;
+            border-radius: 16px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+        .upload-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--gray-200);
+        }
+        .upload-modal-header h2 {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--gray-800);
+        }
+        .upload-modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            color: var(--gray-500);
+            cursor: pointer;
+            padding: 0;
+            line-height: 1;
+        }
+        .upload-modal-close:hover { color: var(--gray-700); }
+        .upload-modal-body { padding: 24px; }
+        .upload-dropzone {
+            border: 2px dashed var(--gray-300);
+            border-radius: 12px;
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: var(--gray-50);
+        }
+        .upload-dropzone:hover, .upload-dropzone.dragover {
+            border-color: var(--primary);
+            background: rgba(30, 58, 95, 0.05);
+        }
+        .upload-icon { font-size: 48px; margin-bottom: 16px; }
+        .upload-text { font-size: 16px; font-weight: 500; color: var(--gray-700); margin-bottom: 8px; }
+        .upload-hint { font-size: 13px; color: var(--gray-500); }
+        .upload-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+            justify-content: center;
+        }
+        .no-data-message {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--gray-500);
+        }
+        .no-data-message h3 {
+            font-size: 20px;
+            color: var(--gray-700);
+            margin-bottom: 12px;
+        }
+        .no-data-message p { margin-bottom: 20px; }
+        .data-source-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            background: var(--gray-100);
+            border-radius: 20px;
+            font-size: 12px;
+            color: var(--gray-600);
+        }
+        .data-source-badge.has-data { background: rgba(16, 185, 129, 0.1); color: var(--success); }
     </style>
 </head>
 <body>
     <!-- Loading Overlay -->
     <div class="loading-overlay" id="loadingOverlay">
         <div class="loading-spinner"></div>
-        <div class="loading-text">Loading data from ClickUp...</div>
+        <div class="loading-text">Loading dashboard...</div>
         <div class="error-message" id="errorMessage" style="display: none;"></div>
+    </div>
+
+    <!-- Upload Modal -->
+    <div class="upload-modal" id="uploadModal">
+        <div class="upload-modal-content">
+            <div class="upload-modal-header">
+                <h2>Upload Data</h2>
+                <button class="upload-modal-close" onclick="closeUploadModal()">&times;</button>
+            </div>
+            <div class="upload-modal-body">
+                <div class="upload-dropzone" id="uploadDropzone" onclick="document.getElementById('fileInput').click()">
+                    <div class="upload-icon">&#128196;</div>
+                    <div class="upload-text">Drop your Excel file here or click to browse</div>
+                    <div class="upload-hint">Supports .xlsx files with Allocations, Sales Pipeline, and Recruitment sheets</div>
+                    <input type="file" id="fileInput" accept=".xlsx,.xls" style="display: none" onchange="handleFileUpload(event)">
+                </div>
+                <div class="upload-actions">
+                    <button class="btn btn-secondary" onclick="downloadTemplate()">Download Template</button>
+                    <button class="btn btn-secondary" onclick="clearData()">Clear Data</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Mobile Sidebar Overlay -->
@@ -678,7 +790,7 @@
             <div class="sidebar-footer">
                 <div class="sync-info">
                     <div class="sync-dot-sidebar" id="syncDot"></div>
-                    <span id="syncText">Synced with ClickUp</span>
+                    <span id="syncText">Data loaded</span>
                 </div>
                 <div style="font-size: 11px; color: var(--sp-sage); margin-top: 8px;">
                     Last updated: <span id="lastUpdated"></span>
@@ -705,11 +817,11 @@
                             <a class="dropdown-item" onclick="window.print()">Print Dashboard</a>
                         </div>
                     </div>
-                    <button class="btn btn-primary" onclick="refreshData()">
+                    <button class="btn btn-primary" onclick="openUploadModal()">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+                            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
                         </svg>
-                        Refresh
+                        Upload Data
                     </button>
                 </div>
             </header>
@@ -1130,7 +1242,7 @@
             <div class="section-card" style="margin-top: 24px;">
                 <div class="section-header">
                     <h3 class="section-title">✏️ Quick Edit Assignments</h3>
-                    <span style="font-size: 13px; color: var(--gray-500);">Change client assignments directly - updates ClickUp automatically</span>
+                    <span style="font-size: 13px; color: var(--gray-500);">Change client assignments directly - saves automatically</span>
                 </div>
                 <div class="table-container">
                     <table>
@@ -1151,7 +1263,7 @@
         </div>
 
         <div class="footer">
-            <p>Data synced from <a href="https://app.clickup.com/2383252/v/l/6-901112841124-1" target="_blank">ClickUp</a> | Service Physics Resource Management</p>
+            <p>Service Physics Resource Management | Data loaded from Excel</p>
             <p style="margin-top: 8px; font-size: 11px; color: var(--gray-400);">Dashboard v3.1 | Auto-refreshes every 5 minutes</p>
         </div>
             </div><!-- /.dashboard -->
@@ -1160,14 +1272,11 @@
 
     <script>
         // ============================================
-        // CONFIGURATION - ClickUp API Integration
+        // CONFIGURATION - Excel File Data Source
         // ============================================
         const CONFIG = {
-            API_TOKEN: 'pk_75502722_RDEO4WFFSG8XIIRYYJ4VALC0RYIU7VLN',
-            ALLOCATIONS_LIST_ID: '901112841124',
-            SALES_FUNNEL_LIST_ID: '901112956083',
-            RECRUITMENT_LIST_ID: '901104337192',
-            REFRESH_INTERVAL: 300000 // 5 minutes
+            STORAGE_KEY: 'servicephysics_dashboard_data',
+            VERSION: '1.0.0'
         };
 
         // ============================================
@@ -1196,144 +1305,343 @@
         // ============================================
         // INITIALIZATION
         // ============================================
-        document.addEventListener('DOMContentLoaded', async function() {
-            await loadAllData();
-            setInterval(refreshData, CONFIG.REFRESH_INTERVAL);
+        document.addEventListener('DOMContentLoaded', function() {
+            setupDragAndDrop();
+            loadFromStorage();
         });
 
-        async function loadAllData() {
+        function loadFromStorage() {
             showLoading(true);
             try {
-                // Load all data sources in parallel
-                const [allocData, salesData, recruitData] = await Promise.all([
-                    fetchClickUpTasks(CONFIG.ALLOCATIONS_LIST_ID),
-                    fetchClickUpTasks(CONFIG.SALES_FUNNEL_LIST_ID),
-                    fetchClickUpTasks(CONFIG.RECRUITMENT_LIST_ID)
-                ]);
+                const stored = localStorage.getItem(CONFIG.STORAGE_KEY);
+                if (stored) {
+                    const data = JSON.parse(stored);
+                    allocations = data.allocations || [];
+                    salesFunnel = data.salesFunnel || [];
+                    candidates = data.candidates || [];
+                    contractsData = data.contracts || [];
 
-                allocations = parseAllocations(allocData);
-                salesFunnel = parseSalesFunnel(salesData);
-                candidates = parseRecruitment(recruitData);
+                    filteredAllocations = [...allocations];
+                    filteredSales = [...salesFunnel];
+                    filteredCandidates = [...candidates];
 
-                filteredAllocations = [...allocations];
-                filteredSales = [...salesFunnel];
-                filteredCandidates = [...candidates];
+                    clients = [...new Set(allocations.map(a => a.client))].sort();
 
-                // Extract unique clients
-                clients = [...new Set(allocations.map(a => a.client))].sort();
-
-                // Render everything
-                renderDashboard();
-                updateSyncStatus(true);
+                    renderDashboard();
+                    updateSyncStatus(true);
+                    updateLastUpdated(data.lastUpdated);
+                } else {
+                    showNoDataMessage();
+                    updateSyncStatus(false);
+                }
             } catch (error) {
-                console.error('Error loading data:', error);
-                showError('Failed to load data from ClickUp. Please check your API token and list IDs.');
+                console.error('Error loading from storage:', error);
+                showNoDataMessage();
                 updateSyncStatus(false);
             }
             showLoading(false);
         }
 
-        async function fetchClickUpTasks(listId) {
-            const response = await fetch(`https://api.clickup.com/api/v2/list/${listId}/task?archived=false&include_closed=true`, {
-                headers: { 'Authorization': CONFIG.API_TOKEN }
-            });
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            const data = await response.json();
-            return data.tasks || [];
+        function saveToStorage() {
+            const data = {
+                allocations,
+                salesFunnel,
+                candidates,
+                contracts: contractsData,
+                lastUpdated: new Date().toISOString(),
+                version: CONFIG.VERSION
+            };
+            localStorage.setItem(CONFIG.STORAGE_KEY, JSON.stringify(data));
+        }
+
+        function showNoDataMessage() {
+            // Show empty state with upload prompt
+            document.getElementById('kpi-clients').textContent = '-';
+            document.getElementById('kpi-allocations').textContent = '-';
+            document.getElementById('kpi-el').textContent = '-';
+            document.getElementById('kpi-pl').textContent = '-';
+            document.getElementById('kpi-converted').textContent = '-';
+            document.getElementById('kpi-funnel').textContent = '-';
+            document.getElementById('kpi-pipeline').textContent = '-';
+            document.getElementById('kpi-candidates').textContent = '-';
         }
 
         // ============================================
-        // DATA PARSING
+        // FILE UPLOAD HANDLING
         // ============================================
-        function parseAllocations(tasks) {
-            return tasks.map(task => {
-                const fields = {};
-                (task.custom_fields || []).forEach(cf => {
-                    fields[cf.name] = cf.value !== undefined ? cf.value :
-                        (cf.type_config?.options?.find(o => o.orderindex === cf.value)?.name || '');
-                });
+        function setupDragAndDrop() {
+            const dropzone = document.getElementById('uploadDropzone');
+            if (!dropzone) return;
 
-                // Get client from Contract relationship field
-                const clientName = getClientFromContract(task);
-
-                return {
-                    id: task.id,
-                    resource: task.name || 'Unknown',
-                    client: clientName,
-                    role: getFieldValue(task, 'Role') || 'PL',
-                    percent: parseInt(getFieldValue(task, 'Allocation %') || getFieldValue(task, 'Percent') || '100'),
-                    status: mapStatus(task.status?.status || 'active'),
-                    notes: getFieldValue(task, 'Notes') || '',
-                    contract: clientName, // Contract is the client relationship
-                    team: getFieldValue(task, 'Team') || getFieldValue(task, 'Team Name') || '',
-                    supportingResource: getFieldValue(task, 'Supporting Resource') || getFieldValue(task, 'Supporting') || '',
-                    supportingPrincipal: getFieldValue(task, 'Supporting Principal') || getFieldValue(task, 'Principal') || ''
-                };
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropzone.addEventListener(eventName, preventDefaults, false);
             });
-        }
 
-        function parseSalesFunnel(tasks) {
-            return tasks.map(task => {
-                return {
-                    id: task.id,
-                    client: task.name || 'Unknown',
-                    project: getFieldValue(task, 'Project') || '',
-                    probability: parseInt(getFieldValue(task, 'Probability') || '0'),
-                    status: getFieldValue(task, 'Sales Status') || task.status?.status || 'Unknown'
-                };
-            });
-        }
-
-        function parseRecruitment(tasks) {
-            return tasks.map(task => {
-                return {
-                    id: task.id,
-                    name: task.name || 'Unknown',
-                    position: getFieldValue(task, 'Position') || getFieldValue(task, 'Role') || '',
-                    stage: task.status?.status || 'New',
-                    notes: getFieldValue(task, 'Notes') || ''
-                };
-            });
-        }
-
-        function getFieldValue(task, fieldName) {
-            const field = (task.custom_fields || []).find(cf =>
-                cf.name?.toLowerCase() === fieldName.toLowerCase()
-            );
-            if (!field) return '';
-
-            // Handle list_relationship fields (like Contract which links to clients)
-            if (field.type === 'list_relationship' && Array.isArray(field.value)) {
-                // Return array of linked task names
-                return field.value.map(item => item.name || 'Unknown').join(', ');
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
             }
 
-            if (field.type === 'drop_down' && field.type_config?.options) {
-                const option = field.type_config.options.find(o => o.orderindex === field.value);
-                return option?.name || '';
-            }
-            return field.value?.toString() || '';
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropzone.addEventListener(eventName, () => dropzone.classList.add('dragover'), false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropzone.addEventListener(eventName, () => dropzone.classList.remove('dragover'), false);
+            });
+
+            dropzone.addEventListener('drop', handleDrop, false);
         }
 
-        // Get client names from Contract relationship field
-        function getClientFromContract(task) {
-            const contractField = (task.custom_fields || []).find(cf =>
-                cf.name?.toLowerCase() === 'contract'
-            );
-            if (!contractField || !Array.isArray(contractField.value) || contractField.value.length === 0) {
-                return 'Unassigned';
+        function handleDrop(e) {
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                processFile(files[0]);
             }
-            // Return first client name, or join multiple
-            return contractField.value.map(item => item.name || 'Unknown').join(', ');
         }
 
-        function mapStatus(status) {
-            const statusLower = status.toLowerCase();
-            if (statusLower.includes('convert') || statusLower.includes('active') || statusLower.includes('complete')) return 'converted';
-            if (statusLower.includes('funnel') || statusLower.includes('transition')) return 'funnel';
-            if (statusLower.includes('tbh') || statusLower.includes('hire')) return 'tbh';
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                processFile(file);
+            }
+        }
+
+        function processFile(file) {
+            if (!file.name.match(/\.(xlsx|xls)$/i)) {
+                alert('Please upload an Excel file (.xlsx or .xls)');
+                return;
+            }
+
+            showLoading(true);
+            const reader = new FileReader();
+
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+
+                    // Parse each sheet
+                    allocations = parseAllocationsSheet(workbook);
+                    salesFunnel = parseSalesSheet(workbook);
+                    candidates = parseRecruitmentSheet(workbook);
+                    contractsData = parseContractsSheet(workbook);
+
+                    filteredAllocations = [...allocations];
+                    filteredSales = [...salesFunnel];
+                    filteredCandidates = [...candidates];
+
+                    clients = [...new Set(allocations.map(a => a.client))].sort();
+
+                    // Save to localStorage
+                    saveToStorage();
+
+                    // Render dashboard
+                    renderDashboard();
+                    updateSyncStatus(true);
+                    updateLastUpdated(new Date().toISOString());
+
+                    closeUploadModal();
+                    alert(`Data loaded successfully!\n\nAllocations: ${allocations.length}\nSales Pipeline: ${salesFunnel.length}\nCandidates: ${candidates.length}`);
+
+                } catch (error) {
+                    console.error('Error parsing Excel file:', error);
+                    alert('Error parsing Excel file. Please check the format matches the template.');
+                }
+                showLoading(false);
+            };
+
+            reader.onerror = function() {
+                alert('Error reading file');
+                showLoading(false);
+            };
+
+            reader.readAsArrayBuffer(file);
+        }
+
+        function parseAllocationsSheet(workbook) {
+            const sheetNames = ['Allocations', 'allocations', 'Resources', 'resources'];
+            let sheet = null;
+            for (const name of sheetNames) {
+                if (workbook.Sheets[name]) {
+                    sheet = workbook.Sheets[name];
+                    break;
+                }
+            }
+            if (!sheet) return [];
+
+            const rows = XLSX.utils.sheet_to_json(sheet);
+            return rows.map(row => ({
+                id: row['ID'] || Math.random().toString(36).substr(2, 9),
+                resource: row['Resource'] || row['Name'] || 'Unknown',
+                client: row['Client'] || 'Unknown',
+                contract: row['Contract'] || row['Client'] || '',
+                role: normalizeRole(row['Role'] || 'PL'),
+                percent: parseInt(row['Allocation %'] || row['Percent'] || row['Allocation'] || '100') || 100,
+                status: normalizeStatus(row['Status'] || 'Active'),
+                team: row['Team'] || '',
+                supportingResource: row['Supporting Resource'] || row['Supporting'] || '',
+                supportingPrincipal: row['Supporting Principal'] || row['Principal'] || '',
+                notes: row['Notes'] || ''
+            }));
+        }
+
+        function parseSalesSheet(workbook) {
+            const sheetNames = ['Sales Pipeline', 'Sales', 'sales', 'Pipeline', 'pipeline'];
+            let sheet = null;
+            for (const name of sheetNames) {
+                if (workbook.Sheets[name]) {
+                    sheet = workbook.Sheets[name];
+                    break;
+                }
+            }
+            if (!sheet) return [];
+
+            const rows = XLSX.utils.sheet_to_json(sheet);
+            return rows.map(row => ({
+                id: row['ID'] || Math.random().toString(36).substr(2, 9),
+                client: row['Client'] || 'Unknown',
+                project: row['Project'] || '',
+                probability: parseInt(String(row['Probability'] || '0').replace('%', '')) || 0,
+                status: row['Status'] || 'Unknown'
+            }));
+        }
+
+        function parseRecruitmentSheet(workbook) {
+            const sheetNames = ['Recruitment', 'recruitment', 'Candidates', 'candidates'];
+            let sheet = null;
+            for (const name of sheetNames) {
+                if (workbook.Sheets[name]) {
+                    sheet = workbook.Sheets[name];
+                    break;
+                }
+            }
+            if (!sheet) return [];
+
+            const rows = XLSX.utils.sheet_to_json(sheet);
+            return rows.map(row => ({
+                id: row['ID'] || Math.random().toString(36).substr(2, 9),
+                name: row['Name'] || 'Unknown',
+                position: row['Position'] || row['Role'] || '',
+                stage: row['Stage'] || row['Status'] || 'New',
+                notes: row['Notes'] || ''
+            }));
+        }
+
+        function parseContractsSheet(workbook) {
+            const sheetNames = ['Contracts', 'contracts'];
+            let sheet = null;
+            for (const name of sheetNames) {
+                if (workbook.Sheets[name]) {
+                    sheet = workbook.Sheets[name];
+                    break;
+                }
+            }
+            if (!sheet) return [];
+
+            const rows = XLSX.utils.sheet_to_json(sheet);
+            return rows.map(row => ({
+                id: row['ID'] || Math.random().toString(36).substr(2, 9),
+                name: row['Name'] || row['Client'] || 'Unknown',
+                startDate: parseExcelDate(row['Start Date']),
+                endDate: parseExcelDate(row['End Date'])
+            }));
+        }
+
+        function parseExcelDate(value) {
+            if (!value) return null;
+            if (typeof value === 'number') {
+                // Excel serial date
+                return new Date((value - 25569) * 86400 * 1000);
+            }
+            const date = new Date(value);
+            return isNaN(date.getTime()) ? null : date;
+        }
+
+        function normalizeRole(role) {
+            const r = String(role).toLowerCase().trim();
+            if (r.includes('engagement') || r === 'el') return 'EL';
+            if (r.includes('project') || r === 'pl') return 'PL';
+            if (r.includes('special')) return 'Special';
+            if (r.includes('tbh') || r.includes('hire')) return 'TBH';
+            return 'PL';
+        }
+
+        function normalizeStatus(status) {
+            const s = String(status).toLowerCase().trim();
+            if (s.includes('active') || s.includes('convert')) return 'converted';
+            if (s.includes('transition') || s.includes('funnel')) return 'funnel';
+            if (s.includes('tbh') || s.includes('hire')) return 'tbh';
             return 'converted';
         }
+
+        // ============================================
+        // UPLOAD MODAL FUNCTIONS
+        // ============================================
+        function openUploadModal() {
+            document.getElementById('uploadModal').classList.add('active');
+        }
+
+        function closeUploadModal() {
+            document.getElementById('uploadModal').classList.remove('active');
+            document.getElementById('fileInput').value = '';
+        }
+
+        function downloadTemplate() {
+            const wb = XLSX.utils.book_new();
+
+            // Allocations template
+            const allocTemplate = [
+                { 'Resource': 'John Smith', 'Client': 'Acme Corp', 'Contract': 'Acme Corp', 'Role': 'EL', 'Allocation %': 100, 'Status': 'Active', 'Team': 'Team A', 'Supporting Resource': '', 'Supporting Principal': '', 'Notes': '' },
+                { 'Resource': 'Jane Doe', 'Client': 'Acme Corp', 'Contract': 'Acme Corp', 'Role': 'PL', 'Allocation %': 50, 'Status': 'Active', 'Team': 'Team A', 'Supporting Resource': 'John Smith', 'Supporting Principal': '', 'Notes': 'Part-time' },
+                { 'Resource': 'TBH Position', 'Client': 'Beta Inc', 'Contract': 'Beta Inc', 'Role': 'TBH', 'Allocation %': 100, 'Status': 'To Be Hired', 'Team': 'Team B', 'Supporting Resource': '', 'Supporting Principal': '', 'Notes': 'Hiring in progress' }
+            ];
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(allocTemplate), 'Allocations');
+
+            // Sales Pipeline template
+            const salesTemplate = [
+                { 'Client': 'New Client A', 'Project': 'Digital Transformation', 'Probability': 75, 'Status': 'Proposal' },
+                { 'Client': 'New Client B', 'Project': 'System Integration', 'Probability': 40, 'Status': 'Initial Contact' }
+            ];
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(salesTemplate), 'Sales Pipeline');
+
+            // Recruitment template
+            const recruitTemplate = [
+                { 'Name': 'Alex Johnson', 'Position': 'Project Lead', 'Stage': 'Interview', 'Notes': 'Strong candidate' },
+                { 'Name': 'Sam Williams', 'Position': 'Engagement Lead', 'Stage': 'Screening', 'Notes': '' }
+            ];
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(recruitTemplate), 'Recruitment');
+
+            // Contracts template
+            const contractsTemplate = [
+                { 'Name': 'Acme Corp', 'Start Date': '2024-01-01', 'End Date': '2025-12-31' },
+                { 'Name': 'Beta Inc', 'Start Date': '2024-06-01', 'End Date': '2026-05-31' }
+            ];
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(contractsTemplate), 'Contracts');
+
+            XLSX.writeFile(wb, 'ServicePhysics_Dashboard_Template.xlsx');
+        }
+
+        function clearData() {
+            if (confirm('Are you sure you want to clear all data? This cannot be undone.')) {
+                localStorage.removeItem(CONFIG.STORAGE_KEY);
+                allocations = [];
+                salesFunnel = [];
+                candidates = [];
+                contractsData = [];
+                filteredAllocations = [];
+                filteredSales = [];
+                filteredCandidates = [];
+                clients = [];
+                showNoDataMessage();
+                updateSyncStatus(false);
+                closeUploadModal();
+            }
+        }
+
+        // ============================================
+        // DATA PARSING (handled by Excel parsing functions above)
+        // ============================================
 
         // ============================================
         // RENDERING
@@ -1375,11 +1683,12 @@
             const dot = document.getElementById('syncDot');
             const text = document.getElementById('syncText');
             dot.classList.toggle('error', !success);
-            text.textContent = success ? 'Synced with ClickUp' : 'Sync failed';
+            text.textContent = success ? 'Data loaded' : 'No data loaded';
         }
 
-        function updateLastUpdated() {
-            document.getElementById('lastUpdated').textContent = new Date().toLocaleString('en-US', {
+        function updateLastUpdated(dateStr) {
+            const date = dateStr ? new Date(dateStr) : new Date();
+            document.getElementById('lastUpdated').textContent = date.toLocaleString('en-US', {
                 month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit'
             });
         }
@@ -2042,59 +2351,12 @@
         // ============================================
         // GANTT CHART
         // ============================================
-        let contractsData = []; // Store fetched contracts data
+        let contractsData = []; // Store contracts data from Excel
 
         async function fetchContractsData() {
-            try {
-                // Get all unique contract IDs from allocations
-                const contractIds = new Set();
-                allocations.forEach(a => {
-                    // Find contract field in raw task data (we'll need to re-fetch)
-                });
-
-                // Fetch allocations with full data to get contract relationships
-                const response = await fetch(`https://api.clickup.com/api/v2/list/${CONFIG.ALLOCATIONS_LIST_ID}/task?archived=false&include_closed=true`, {
-                    headers: { 'Authorization': CONFIG.API_TOKEN }
-                });
-                const data = await response.json();
-
-                // Extract unique contract task IDs
-                const contractTaskIds = new Set();
-                data.tasks.forEach(task => {
-                    const contractField = (task.custom_fields || []).find(cf => cf.name === 'Contract');
-                    if (contractField && Array.isArray(contractField.value)) {
-                        contractField.value.forEach(c => contractTaskIds.add(c.id));
-                    }
-                });
-
-                // Fetch each contract to get dates
-                contractsData = [];
-                for (const id of Array.from(contractTaskIds)) {
-                    try {
-                        const contractResponse = await fetch(`https://api.clickup.com/api/v2/task/${id}`, {
-                            headers: { 'Authorization': CONFIG.API_TOKEN }
-                        });
-                        const contractTask = await contractResponse.json();
-
-                        const startDateField = (contractTask.custom_fields || []).find(cf => cf.name === 'Contract Start Date');
-                        const endDateField = (contractTask.custom_fields || []).find(cf => cf.name === 'Contract End Date');
-
-                        contractsData.push({
-                            id: contractTask.id,
-                            name: contractTask.name,
-                            startDate: startDateField?.value ? new Date(parseInt(startDateField.value)) : null,
-                            endDate: endDateField?.value ? new Date(parseInt(endDateField.value)) : null
-                        });
-                    } catch (e) {
-                        console.error('Error fetching contract:', id, e);
-                    }
-                }
-
-                return contractsData;
-            } catch (e) {
-                console.error('Error fetching contracts data:', e);
-                return [];
-            }
+            // Contracts are now loaded from Excel file
+            // This function returns the already-loaded contractsData
+            return contractsData;
         }
 
         function renderGanttChart() {
@@ -2236,37 +2498,18 @@
             selectElement.disabled = true;
 
             try {
-                // Find the contract ID for the selected client name
-                const contract = contractsData.find(c => c.name === newClientName);
-                if (!contract) {
-                    throw new Error('Client not found');
-                }
-
-                // Update the task in ClickUp
-                // Note: Updating list_relationship fields requires special API handling
-                const response = await fetch(`https://api.clickup.com/api/v2/task/${taskId}`, {
-                    method: 'PUT',
-                    headers: {
-                        'Authorization': CONFIG.API_TOKEN,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        // For list_relationship, we need to use the field ID
-                        // This is a simplified version - full implementation would need field ID lookup
-                    })
-                });
-
-                if (!response.ok) throw new Error('Failed to update');
-
-                indicator.innerHTML = '✓';
-                indicator.className = 'save-indicator success';
-
                 // Update local data
                 const alloc = allocations.find(a => a.id === taskId);
                 if (alloc) {
                     alloc.client = newClientName;
                     alloc.contract = newClientName;
                 }
+
+                // Save to localStorage
+                saveToStorage();
+
+                indicator.innerHTML = '✓';
+                indicator.className = 'save-indicator success';
 
                 setTimeout(() => {
                     indicator.innerHTML = '';
@@ -2499,8 +2742,9 @@
         // ============================================
         // REFRESH & EXPORT
         // ============================================
-        async function refreshData() {
-            await loadAllData();
+        function refreshData() {
+            // Data is loaded from Excel file, open upload modal for new data
+            openUploadModal();
         }
 
         function exportToExcel() {
