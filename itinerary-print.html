@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ireland Trip 2026 - Itinerary</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            color: #1e293b;
+            line-height: 1.5;
+            padding: 0;
+            background: white;
+        }
+        .page {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 32px 40px;
+        }
+        .header {
+            text-align: center;
+            padding: 36px 24px 28px;
+            background: linear-gradient(135deg, #1e3a5f 0%, #2a4a73 50%, #5a7e7e 100%);
+            color: white;
+            border-radius: 16px;
+            margin-bottom: 32px;
+        }
+        .header h1 {
+            font-size: 30px;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+        .header .subtitle {
+            font-size: 15px;
+            opacity: 0.85;
+        }
+        .header .dates {
+            font-size: 13px;
+            opacity: 0.65;
+            margin-top: 4px;
+        }
+        .day {
+            margin-bottom: 28px;
+            page-break-inside: avoid;
+        }
+        .day-header {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 14px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #1e3a5f;
+        }
+        .day-date {
+            background: #1e3a5f;
+            color: white;
+            border-radius: 10px;
+            padding: 6px 4px;
+            min-width: 56px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+        .day-date .dn { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; opacity: 0.85; }
+        .day-date .dd { font-size: 24px; font-weight: 700; line-height: 1.1; }
+        .day-date .dm { font-size: 10px; text-transform: uppercase; opacity: 0.7; }
+        .day-title { font-size: 18px; font-weight: 600; color: #1e3a5f; }
+        .day-subtitle { font-size: 12px; color: #64748b; margin-top: 2px; }
+
+        .events {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding-left: 70px;
+            position: relative;
+        }
+        .events::before {
+            content: '';
+            position: absolute;
+            left: 27px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: #e2e8f0;
+        }
+        .event {
+            display: flex;
+            gap: 14px;
+            align-items: flex-start;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 12px 16px;
+            position: relative;
+        }
+        .event::before {
+            content: '';
+            position: absolute;
+            left: -51px;
+            top: 16px;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #7a9e9e;
+            border: 2px solid white;
+            box-shadow: 0 0 0 2px #7a9e9e;
+        }
+        .event.hl::before {
+            background: #1e3a5f;
+            box-shadow: 0 0 0 2px #1e3a5f;
+        }
+        .event-icon {
+            font-size: 20px;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: white;
+            border-radius: 8px;
+            flex-shrink: 0;
+        }
+        .event-details { flex: 1; }
+        .event-title { font-weight: 600; font-size: 14px; color: #1e293b; }
+        .event-time { font-size: 12px; color: #1e3a5f; font-weight: 500; margin-top: 1px; }
+        .event-loc { font-size: 11px; color: #64748b; margin-top: 3px; }
+        .event-note { font-size: 11px; color: #94a3b8; font-style: italic; margin-top: 3px; }
+        .tag {
+            display: inline-block;
+            padding: 1px 8px;
+            border-radius: 20px;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 4px;
+        }
+        .tag.golf { background: #dcfce7; color: #166534; }
+        .tag.food { background: #fef3c7; color: #92400e; }
+        .tag.travel { background: #dbeafe; color: #1e40af; }
+        .tag.explore { background: #f3e8ff; color: #6b21a8; }
+        .tag.lodging { background: #fce7f3; color: #9d174d; }
+        .tag.flight { background: #e0f2fe; color: #0c4a6e; }
+    </style>
+</head>
+<body>
+<div class="page">
+    <div class="header">
+        <h1>Ireland Trip 2026</h1>
+        <div class="subtitle">Kerry &bull; Cahersiveen &bull; Maynooth</div>
+        <div class="dates">Friday, April 24 &ndash; Tuesday, April 28</div>
+    </div>
+
+    <!-- Friday 24 -->
+    <div class="day">
+        <div class="day-header">
+            <div class="day-date"><div class="dn">Fri</div><div class="dd">24</div><div class="dm">Apr</div></div>
+            <div><div class="day-title">Arrival &amp; Adare Manor</div><div class="day-subtitle">Lunch, settle in, and dinner on the coast</div></div>
+        </div>
+        <div class="events">
+            <div class="event hl">
+                <div class="event-icon">&#127860;</div>
+                <div class="event-details">
+                    <div class="event-title">Lunch at Adare Manor</div>
+                    <div class="event-time">1:00 &ndash; 3:00 p.m.</div>
+                    <div class="event-loc">&#128205; Adare Manor, Adare, Co. Limerick, V94 W8WR</div>
+                    <span class="tag food">Dining</span>
+                </div>
+            </div>
+            <div class="event">
+                <div class="event-icon">&#127968;</div>
+                <div class="event-details">
+                    <div class="event-title">Airbnb Check-in</div>
+                    <div class="event-time">6:00 &ndash; 8:00 p.m.</div>
+                    <div class="event-loc">&#128205; Reenard, Co. Kerry</div>
+                    <span class="tag lodging">Lodging</span>
+                </div>
+            </div>
+            <div class="event hl">
+                <div class="event-icon">&#127860;</div>
+                <div class="event-details">
+                    <div class="event-title">Dinner at O'Neills</div>
+                    <div class="event-time">8:00 &ndash; 8:45 p.m.</div>
+                    <div class="event-loc">&#128205; O'Neills The Point Seafood Bar, Reenard, Co. Kerry</div>
+                    <span class="tag food">Dining</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Saturday 25 -->
+    <div class="day">
+        <div class="day-header">
+            <div class="day-date"><div class="dn">Sat</div><div class="dd">25</div><div class="dm">Apr</div></div>
+            <div><div class="day-title">Waterville Golf &amp; Dinner</div><div class="day-subtitle">Tee time, pints, and a special dinner spot</div></div>
+        </div>
+        <div class="events">
+            <div class="event hl">
+                <div class="event-icon">&#9971;</div>
+                <div class="event-details">
+                    <div class="event-title">Golf @ Waterville</div>
+                    <div class="event-time">10:00 a.m. &ndash; 2:00 p.m.</div>
+                    <div class="event-note">10:30a tee time &bull; ~20 min drive from the house</div>
+                    <span class="tag golf">Golf</span>
+                </div>
+            </div>
+            <div class="event">
+                <div class="event-icon">&#127866;</div>
+                <div class="event-details">
+                    <div class="event-title">Pints &amp; Shower</div>
+                    <div class="event-time">3:30 &ndash; 5:45 p.m.</div>
+                    <div class="event-note">Wind down after the round</div>
+                </div>
+            </div>
+            <div class="event">
+                <div class="event-icon">&#128663;</div>
+                <div class="event-details">
+                    <div class="event-title">Car Pickup</div>
+                    <div class="event-time">6:00 &ndash; 7:15 p.m.</div>
+                    <span class="tag travel">Travel</span>
+                </div>
+            </div>
+            <div class="event hl">
+                <div class="event-icon">&#127860;</div>
+                <div class="event-details">
+                    <div class="event-title">Dinner in the Remote Spot</div>
+                    <div class="event-time">8:00 &ndash; 11:00 p.m.</div>
+                    <span class="tag food">Dining</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sunday 26 -->
+    <div class="day">
+        <div class="day-header">
+            <div class="day-date"><div class="dn">Sun</div><div class="dd">26</div><div class="dm">Apr</div></div>
+            <div><div class="day-title">Dooks Golf &amp; Cahersiveen</div><div class="day-subtitle">Afternoon round and exploring the town</div></div>
+        </div>
+        <div class="events">
+            <div class="event hl">
+                <div class="event-icon">&#9971;</div>
+                <div class="event-details">
+                    <div class="event-title">Golf @ Dooks</div>
+                    <div class="event-time">2:30 &ndash; 7:30 p.m.</div>
+                    <div class="event-loc">&#128205; Dooks Golf Club, Dooaghs, Glenbeigh, Co. Kerry</div>
+                    <div class="event-note">~40 min drive from the house</div>
+                    <span class="tag golf">Golf</span>
+                </div>
+            </div>
+            <div class="event">
+                <div class="event-icon">&#127963;</div>
+                <div class="event-details">
+                    <div class="event-title">Explore Cahersiveen</div>
+                    <div class="event-time">8:00 &ndash; 10:00 p.m.</div>
+                    <div class="event-note">Evening stroll and sightseeing</div>
+                    <span class="tag explore">Explore</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Monday 27 -->
+    <div class="day">
+        <div class="day-header">
+            <div class="day-date"><div class="dn">Mon</div><div class="dd">27</div><div class="dm">Apr</div></div>
+            <div><div class="day-title">Drive to Maynooth &amp; Carton House</div><div class="day-subtitle">Head back east with an optional round</div></div>
+        </div>
+        <div class="events">
+            <div class="event">
+                <div class="event-icon">&#128663;</div>
+                <div class="event-details">
+                    <div class="event-title">Drive Back to Maynooth</div>
+                    <div class="event-time">10:00 a.m. &ndash; 2:00 p.m.</div>
+                    <span class="tag travel">Travel</span>
+                </div>
+            </div>
+            <div class="event hl">
+                <div class="event-icon">&#9971;</div>
+                <div class="event-details">
+                    <div class="event-title">Golf @ Carton House</div>
+                    <div class="event-time">3:00 &ndash; 6:00 p.m.</div>
+                    <div class="event-note">If we feel like it</div>
+                    <span class="tag golf">Golf</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tuesday 28 -->
+    <div class="day">
+        <div class="day-header">
+            <div class="day-date"><div class="dn">Tue</div><div class="dd">28</div><div class="dm">Apr</div></div>
+            <div><div class="day-title">Departure Day</div><div class="day-subtitle">Flights home &mdash; leave Maynooth early</div></div>
+        </div>
+        <div class="events">
+            <div class="event hl">
+                <div class="event-icon">&#9992;</div>
+                <div class="event-details">
+                    <div class="event-title">Tom's Flight</div>
+                    <div class="event-time">~10:30 a.m.</div>
+                    <div class="event-note">Leave Maynooth by ~5:30 a.m.</div>
+                    <span class="tag flight">Flight</span>
+                </div>
+            </div>
+            <div class="event hl">
+                <div class="event-icon">&#9992;</div>
+                <div class="event-details">
+                    <div class="event-title">Chris's Flight</div>
+                    <div class="event-time">12:40 p.m.</div>
+                    <span class="tag flight">Flight</span>
+                </div>
+            </div>
+            <div class="event hl">
+                <div class="event-icon">&#9992;</div>
+                <div class="event-details">
+                    <div class="event-title">Dillon's Flight</div>
+                    <div class="event-time">1:15 p.m.</div>
+                    <span class="tag flight">Flight</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

@@ -581,6 +581,211 @@
         .save-indicator.error { color: var(--danger); }
         .inline-edit-btn { padding: 4px 8px; font-size: 11px; background: var(--gray-100); border: 1px solid var(--gray-200); border-radius: 4px; cursor: pointer; color: var(--gray-600); }
         .inline-edit-btn:hover { background: var(--gray-200); }
+
+        /* Itinerary Styles */
+        .itinerary-header {
+            text-align: center;
+            padding: 40px 24px 32px;
+            background: linear-gradient(135deg, var(--sp-navy) 0%, var(--sp-navy-light) 50%, var(--sp-sage-dark) 100%);
+            color: white;
+            border-radius: 16px;
+            margin-bottom: 32px;
+            position: relative;
+            overflow: hidden;
+        }
+        .itinerary-header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.05) 0%, transparent 70%);
+        }
+        .itinerary-header h2 {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            position: relative;
+        }
+        .itinerary-header .subtitle {
+            font-size: 16px;
+            opacity: 0.85;
+            font-weight: 400;
+            position: relative;
+        }
+        .itinerary-header .dates {
+            font-size: 14px;
+            opacity: 0.7;
+            margin-top: 4px;
+            position: relative;
+        }
+        .itinerary-day {
+            margin-bottom: 28px;
+        }
+        .itinerary-day-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid var(--sp-navy);
+        }
+        .itinerary-day-date {
+            background: var(--sp-navy);
+            color: white;
+            border-radius: 12px;
+            padding: 8px 4px;
+            min-width: 64px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+        .itinerary-day-date .day-name {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+            opacity: 0.85;
+        }
+        .itinerary-day-date .day-num {
+            font-size: 28px;
+            font-weight: 700;
+            line-height: 1.1;
+        }
+        .itinerary-day-date .day-month {
+            font-size: 11px;
+            text-transform: uppercase;
+            opacity: 0.7;
+        }
+        .itinerary-day-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--sp-navy);
+        }
+        .itinerary-day-subtitle {
+            font-size: 13px;
+            color: var(--gray-500);
+            margin-top: 2px;
+        }
+        .itinerary-events {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding-left: 80px;
+            position: relative;
+        }
+        .itinerary-events::before {
+            content: '';
+            position: absolute;
+            left: 31px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: var(--gray-200);
+        }
+        .itinerary-event {
+            display: flex;
+            gap: 16px;
+            align-items: flex-start;
+            background: white;
+            border: 1px solid var(--gray-200);
+            border-radius: 12px;
+            padding: 16px 20px;
+            position: relative;
+            transition: box-shadow 0.2s, transform 0.2s;
+        }
+        .itinerary-event:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            transform: translateY(-1px);
+        }
+        .itinerary-event::before {
+            content: '';
+            position: absolute;
+            left: -57px;
+            top: 20px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--sp-sage);
+            border: 3px solid white;
+            box-shadow: 0 0 0 2px var(--sp-sage);
+        }
+        .itinerary-event.highlight::before {
+            background: var(--sp-navy);
+            box-shadow: 0 0 0 2px var(--sp-navy);
+        }
+        .itinerary-event-icon {
+            font-size: 24px;
+            flex-shrink: 0;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--gray-50);
+            border-radius: 10px;
+        }
+        .itinerary-event-details {
+            flex: 1;
+            min-width: 0;
+        }
+        .itinerary-event-title {
+            font-weight: 600;
+            font-size: 15px;
+            color: var(--gray-800);
+        }
+        .itinerary-event-time {
+            font-size: 13px;
+            color: var(--sp-navy);
+            font-weight: 500;
+            margin-top: 2px;
+        }
+        .itinerary-event-location {
+            font-size: 12px;
+            color: var(--gray-500);
+            margin-top: 4px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .itinerary-event-note {
+            font-size: 12px;
+            color: var(--gray-400);
+            font-style: italic;
+            margin-top: 4px;
+        }
+        .itinerary-event-tag {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 6px;
+        }
+        .itinerary-event-tag.golf { background: #dcfce7; color: #166534; }
+        .itinerary-event-tag.food { background: #fef3c7; color: #92400e; }
+        .itinerary-event-tag.travel { background: #dbeafe; color: #1e40af; }
+        .itinerary-event-tag.explore { background: #f3e8ff; color: #6b21a8; }
+        .itinerary-event-tag.lodging { background: #fce7f3; color: #9d174d; }
+        .itinerary-event-tag.flight { background: #e0f2fe; color: #0c4a6e; }
+
+        @media print {
+            .sidebar, .top-header, .footer, .mobile-menu-btn { display: none !important; }
+            .main-content { margin-left: 0 !important; padding: 0 !important; }
+            .itinerary-header { break-after: avoid; }
+            .itinerary-day { break-inside: avoid; }
+            .itinerary-events { padding-left: 60px; }
+            .itinerary-event::before { left: -37px; }
+            .itinerary-events::before { left: 21px; }
+        }
+        @media (max-width: 1024px) {
+            .itinerary-events { padding-left: 60px; }
+            .itinerary-event::before { left: -37px; }
+            .itinerary-events::before { left: 21px; }
+            .itinerary-header h2 { font-size: 24px; }
+        }
     </style>
 </head>
 <body>
@@ -659,6 +864,14 @@
                     <button class="nav-item" onclick="switchTab('timeline')">
                         <span class="nav-item-icon">⏱️</span>
                         Timeline
+                    </button>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Travel</div>
+                    <button class="nav-item" onclick="switchTab('itinerary')">
+                        <span class="nav-item-icon">&#9992;</span>
+                        Ireland Trip
                     </button>
                 </div>
 
@@ -1150,6 +1363,223 @@
             </div>
         </div>
 
+        <!-- ITINERARY TAB -->
+        <div id="itinerary" class="tab-content">
+
+            <div class="itinerary-header">
+                <h2>Ireland Trip 2026</h2>
+                <div class="subtitle">Kerry &bull; Cahersiveen &bull; Maynooth</div>
+                <div class="dates">Friday, April 24 &ndash; Tuesday, April 28</div>
+            </div>
+
+            <!-- DAY 1 - Friday -->
+            <div class="itinerary-day">
+                <div class="itinerary-day-header">
+                    <div class="itinerary-day-date">
+                        <div class="day-name">Fri</div>
+                        <div class="day-num">24</div>
+                        <div class="day-month">Apr</div>
+                    </div>
+                    <div>
+                        <div class="itinerary-day-title">Arrival &amp; Adare Manor</div>
+                        <div class="itinerary-day-subtitle">Lunch, settle in, and dinner on the coast</div>
+                    </div>
+                </div>
+                <div class="itinerary-events">
+                    <div class="itinerary-event highlight">
+                        <div class="itinerary-event-icon">&#127860;</div>
+                        <div class="itinerary-event-details">
+                            <div class="itinerary-event-title">Lunch at Adare Manor</div>
+                            <div class="itinerary-event-time">1:00 &ndash; 3:00 p.m.</div>
+                            <div class="itinerary-event-location">&#128205; Adare Manor, Adare, Co. Limerick, V94 W8WR</div>
+                            <span class="itinerary-event-tag food">Dining</span>
+                        </div>
+                    </div>
+                    <div class="itinerary-event">
+                        <div class="itinerary-event-icon">&#127968;</div>
+                        <div class="itinerary-event-details">
+                            <div class="itinerary-event-title">Airbnb Check-in</div>
+                            <div class="itinerary-event-time">6:00 &ndash; 8:00 p.m.</div>
+                            <div class="itinerary-event-location">&#128205; Reenard, Co. Kerry</div>
+                            <span class="itinerary-event-tag lodging">Lodging</span>
+                        </div>
+                    </div>
+                    <div class="itinerary-event highlight">
+                        <div class="itinerary-event-icon">&#127860;</div>
+                        <div class="itinerary-event-details">
+                            <div class="itinerary-event-title">Dinner at O'Neills</div>
+                            <div class="itinerary-event-time">8:00 &ndash; 8:45 p.m.</div>
+                            <div class="itinerary-event-location">&#128205; O'Neills The Point Seafood Bar, Reenard, Co. Kerry</div>
+                            <span class="itinerary-event-tag food">Dining</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DAY 2 - Saturday -->
+            <div class="itinerary-day">
+                <div class="itinerary-day-header">
+                    <div class="itinerary-day-date">
+                        <div class="day-name">Sat</div>
+                        <div class="day-num">25</div>
+                        <div class="day-month">Apr</div>
+                    </div>
+                    <div>
+                        <div class="itinerary-day-title">Waterville Golf &amp; Dinner</div>
+                        <div class="itinerary-day-subtitle">Tee time, pints, and a special dinner spot</div>
+                    </div>
+                </div>
+                <div class="itinerary-events">
+                    <div class="itinerary-event highlight">
+                        <div class="itinerary-event-icon">&#9971;</div>
+                        <div class="itinerary-event-details">
+                            <div class="itinerary-event-title">Golf @ Waterville</div>
+                            <div class="itinerary-event-time">10:00 a.m. &ndash; 2:00 p.m.</div>
+                            <div class="itinerary-event-note">10:30a tee time &bull; ~20 min drive from the house</div>
+                            <span class="itinerary-event-tag golf">Golf</span>
+                        </div>
+                    </div>
+                    <div class="itinerary-event">
+                        <div class="itinerary-event-icon">&#127866;</div>
+                        <div class="itinerary-event-details">
+                            <div class="itinerary-event-title">Pints &amp; Shower</div>
+                            <div class="itinerary-event-time">3:30 &ndash; 5:45 p.m.</div>
+                            <div class="itinerary-event-note">Wind down after the round</div>
+                        </div>
+                    </div>
+                    <div class="itinerary-event">
+                        <div class="itinerary-event-icon">&#128663;</div>
+                        <div class="itinerary-event-details">
+                            <div class="itinerary-event-title">Car Pickup</div>
+                            <div class="itinerary-event-time">6:00 &ndash; 7:15 p.m.</div>
+                            <span class="itinerary-event-tag travel">Travel</span>
+                        </div>
+                    </div>
+                    <div class="itinerary-event highlight">
+                        <div class="itinerary-event-icon">&#127860;</div>
+                        <div class="itinerary-event-details">
+                            <div class="itinerary-event-title">Dinner in the Remote Spot</div>
+                            <div class="itinerary-event-time">8:00 &ndash; 11:00 p.m.</div>
+                            <span class="itinerary-event-tag food">Dining</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DAY 3 - Sunday -->
+            <div class="itinerary-day">
+                <div class="itinerary-day-header">
+                    <div class="itinerary-day-date">
+                        <div class="day-name">Sun</div>
+                        <div class="day-num">26</div>
+                        <div class="day-month">Apr</div>
+                    </div>
+                    <div>
+                        <div class="itinerary-day-title">Dooks Golf &amp; Cahersiveen</div>
+                        <div class="itinerary-day-subtitle">Afternoon round and exploring the town</div>
+                    </div>
+                </div>
+                <div class="itinerary-events">
+                    <div class="itinerary-event highlight">
+                        <div class="itinerary-event-icon">&#9971;</div>
+                        <div class="itinerary-event-details">
+                            <div class="itinerary-event-title">Golf @ Dooks</div>
+                            <div class="itinerary-event-time">2:30 &ndash; 7:30 p.m.</div>
+                            <div class="itinerary-event-location">&#128205; Dooks Golf Club, Dooaghs, Glenbeigh, Co. Kerry</div>
+                            <div class="itinerary-event-note">~40 min drive from the house</div>
+                            <span class="itinerary-event-tag golf">Golf</span>
+                        </div>
+                    </div>
+                    <div class="itinerary-event">
+                        <div class="itinerary-event-icon">&#127963;</div>
+                        <div class="itinerary-event-details">
+                            <div class="itinerary-event-title">Explore Cahersiveen</div>
+                            <div class="itinerary-event-time">8:00 &ndash; 10:00 p.m.</div>
+                            <div class="itinerary-event-note">Evening stroll and sightseeing</div>
+                            <span class="itinerary-event-tag explore">Explore</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DAY 4 - Monday -->
+            <div class="itinerary-day">
+                <div class="itinerary-day-header">
+                    <div class="itinerary-day-date">
+                        <div class="day-name">Mon</div>
+                        <div class="day-num">27</div>
+                        <div class="day-month">Apr</div>
+                    </div>
+                    <div>
+                        <div class="itinerary-day-title">Drive to Maynooth &amp; Carton House</div>
+                        <div class="itinerary-day-subtitle">Head back east with an optional round</div>
+                    </div>
+                </div>
+                <div class="itinerary-events">
+                    <div class="itinerary-event">
+                        <div class="itinerary-event-icon">&#128663;</div>
+                        <div class="itinerary-event-details">
+                            <div class="itinerary-event-title">Drive Back to Maynooth</div>
+                            <div class="itinerary-event-time">10:00 a.m. &ndash; 2:00 p.m.</div>
+                            <span class="itinerary-event-tag travel">Travel</span>
+                        </div>
+                    </div>
+                    <div class="itinerary-event highlight">
+                        <div class="itinerary-event-icon">&#9971;</div>
+                        <div class="itinerary-event-details">
+                            <div class="itinerary-event-title">Golf @ Carton House</div>
+                            <div class="itinerary-event-time">3:00 &ndash; 6:00 p.m.</div>
+                            <div class="itinerary-event-note">If we feel like it</div>
+                            <span class="itinerary-event-tag golf">Golf</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DAY 5 - Tuesday -->
+            <div class="itinerary-day">
+                <div class="itinerary-day-header">
+                    <div class="itinerary-day-date">
+                        <div class="day-name">Tue</div>
+                        <div class="day-num">28</div>
+                        <div class="day-month">Apr</div>
+                    </div>
+                    <div>
+                        <div class="itinerary-day-title">Departure Day</div>
+                        <div class="itinerary-day-subtitle">Flights home &mdash; leave Maynooth early</div>
+                    </div>
+                </div>
+                <div class="itinerary-events">
+                    <div class="itinerary-event highlight">
+                        <div class="itinerary-event-icon">&#9992;</div>
+                        <div class="itinerary-event-details">
+                            <div class="itinerary-event-title">Tom's Flight</div>
+                            <div class="itinerary-event-time">~10:30 a.m.</div>
+                            <div class="itinerary-event-note">Leave Maynooth by ~5:30 a.m.</div>
+                            <span class="itinerary-event-tag flight">Flight</span>
+                        </div>
+                    </div>
+                    <div class="itinerary-event highlight">
+                        <div class="itinerary-event-icon">&#9992;</div>
+                        <div class="itinerary-event-details">
+                            <div class="itinerary-event-title">Chris's Flight</div>
+                            <div class="itinerary-event-time">12:40 p.m.</div>
+                            <span class="itinerary-event-tag flight">Flight</span>
+                        </div>
+                    </div>
+                    <div class="itinerary-event highlight">
+                        <div class="itinerary-event-icon">&#9992;</div>
+                        <div class="itinerary-event-details">
+                            <div class="itinerary-event-title">Dillon's Flight</div>
+                            <div class="itinerary-event-time">1:15 p.m.</div>
+                            <span class="itinerary-event-tag flight">Flight</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
         <div class="footer">
             <p>Data synced from <a href="https://app.clickup.com/2383252/v/l/6-901112841124-1" target="_blank">ClickUp</a> | Service Physics Resource Management</p>
             <p style="margin-top: 8px; font-size: 11px; color: var(--gray-400);">Dashboard v3.1 | Auto-refreshes every 5 minutes</p>
@@ -1447,7 +1877,8 @@
             'gantt': 'Gantt Chart',
             'timeline': 'Timeline',
             'salesfunnel': 'Sales Pipeline',
-            'recruitment': 'Recruitment'
+            'recruitment': 'Recruitment',
+            'itinerary': 'Ireland Trip 2026'
         };
 
         function switchTab(tabId) {
