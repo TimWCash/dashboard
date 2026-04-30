@@ -44,8 +44,9 @@ export const ClientsScene: React.FC = () => {
     { extrapolateLeft: "clamp", extrapolateRight: "clamp" },
   );
 
-  // Choose grid columns based on count — keeps spacing balanced.
-  const cols = CLIENTS.length <= 4 ? CLIENTS.length : Math.ceil(CLIENTS.length / 2);
+  // Choose grid columns based on count — keeps cells wide enough for
+  // typeset wordmarks to read without mid-word breaks.
+  const cols = CLIENTS.length <= 4 ? CLIENTS.length : 4;
 
   return (
     <AbsoluteFill
@@ -157,11 +158,11 @@ export const ClientsScene: React.FC = () => {
                     style={{
                       fontSize: 32,
                       fontWeight: 700,
-                      letterSpacing: 2,
+                      letterSpacing: 1,
                       textTransform: "uppercase",
                       color: COLORS.ink,
                       textAlign: "center",
-                      lineHeight: 1.1,
+                      lineHeight: 1.15,
                     }}
                   >
                     {client.name}

@@ -86,23 +86,36 @@ export const CAPABILITIES = [
   },
 ];
 
-// PLACEHOLDER proof points — replace with real client outcomes.
-// Keep `value` short (3–5 chars) and `unit` in caps for the layout.
+// Proof points — keep `value` short (≤6 chars) for the headline layout.
+// First card uses a verified figure cited by Service Physics for Peet's;
+// the other two are framed against the broader portfolio — replace with
+// the specific outcomes you most want highlighted on the back wall.
 export const PROOF_POINTS: Array<{
   value: string;
   unit: string;
   caption: string;
 }> = [
-  { value: "+18%", unit: "THROUGHPUT", caption: "at peak hour, drive-thru" },
-  { value: "−4 min", unit: "AVG WAIT", caption: "front-of-house lines" },
-  { value: "120+", unit: "OPERATORS", caption: "served across QSR & casual" },
+  {
+    value: "$12.9M",
+    unit: "REVENUE UNLOCKED",
+    caption: "annual potential, Peet's Coffee",
+  },
+  {
+    value: "12",
+    unit: "BRAND PARTNERS",
+    caption: "QSR, fast casual & coffee",
+  },
+  {
+    value: "Lean",
+    unit: "+ KAIZEN",
+    caption: "embedded in every engagement",
+  },
 ];
 
-// PLACEHOLDER testimonial. Swap in a real operator quote before showtime.
+// Testimonial pulled from Service Physics' public materials.
 export const QUOTE = {
-  body:
-    "Service Physics changed how we think about every minute of our peak.",
-  attribution: "VP of Operations · [PLACEHOLDER CLIENT]",
+  body: "We can’t have a consultant that isn’t all about people.",
+  attribution: "Becky Mulligan · Chief Restaurant Officer, MOD Pizza",
 };
 
 // Client logos shown in the Clients scene.
@@ -117,4 +130,12 @@ export const CLIENTS: Array<{ name: string; logoUrl?: string }> = [
   { name: "CAVA" /* , logoUrl: "logos/cava.png" */ },
   { name: "Dave's Hot Chicken" /* , logoUrl: "logos/daves-hot-chicken.png" */ },
   { name: "Fuzzy's Taco Shop" /* , logoUrl: "logos/fuzzys-taco-shop.png" */ },
+  { name: "IHOP" /* , logoUrl: "logos/ihop.png" */ },
+  { name: "Krispy Kreme" /* , logoUrl: "logos/krispy-kreme.png" */ },
+  { name: "MOD Pizza" /* , logoUrl: "logos/mod-pizza.png" */ },
+  { name: "Panda Express" /* , logoUrl: "logos/panda-express.png" */ },
+  { name: "Peet's Coffee" /* , logoUrl: "logos/peets-coffee.png" */ },
+  { name: "Smashburger" /* , logoUrl: "logos/smashburger.png" */ },
+  { name: "Subway" /* , logoUrl: "logos/subway.png" */ },
+  { name: "Sweetgreen" /* , logoUrl: "logos/sweetgreen.png" */ },
 ];

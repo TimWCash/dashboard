@@ -121,12 +121,13 @@ export const ProofScene: React.FC = () => {
               >
                 <div
                   style={{
-                    fontSize: 128,
+                    fontSize: 120,
                     lineHeight: 1,
                     fontWeight: 800,
-                    letterSpacing: -2,
+                    letterSpacing: -3,
                     color: COLORS.accentBright,
                     textShadow: `0 0 40px rgba(232,184,106,0.25)`,
+                    whiteSpace: "nowrap",
                   }}
                 >
                   {p.value}
