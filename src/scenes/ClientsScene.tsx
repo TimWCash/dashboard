@@ -144,7 +144,11 @@ export const ClientsScene: React.FC = () => {
               >
                 {client.logoUrl ? (
                   <Img
-                    src={staticFile(client.logoUrl)}
+                    src={
+                      client.logoUrl.startsWith("http")
+                        ? client.logoUrl
+                        : staticFile(client.logoUrl)
+                    }
                     style={{
                       maxWidth: "100%",
                       maxHeight: "100%",

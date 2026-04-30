@@ -6,8 +6,7 @@ export const BRAND = {
   name: "SERVICE PHYSICS",
   tagline: "Make service work better for people.",
   url: "servicephysics.com",
-  // PLACEHOLDER — swap in actual booth number for NRA Show 2026.
-  booth: "BOOTH #####",
+  booth: "BOOTH #7365",
   event: "NRA Show 2026",
   eventLong: "National Restaurant Association Show · Chicago",
 };
