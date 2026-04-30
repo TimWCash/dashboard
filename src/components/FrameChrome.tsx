@@ -3,23 +3,24 @@ import { AbsoluteFill, useCurrentFrame, interpolate } from "remotion";
 import { BRAND, COLORS, SCENES } from "../constants";
 
 // The persistent chrome that sits above scenes:
-// thin top rule, small wordmark + URL, and a frame counter–style label.
-// Fades in after the opening logo scene and fades out for the CTA flourish.
+// thin rules, small wordmark + URL, event tag, and a prominent booth chip.
+// On a back-wall loop people only glance — so chrome stays visible the
+// entire run except for a brief fade-in over the opening logo flourish
+// and a fade-out tail at the very end so the CTA owns the frame.
 export const FrameChrome: React.FC = () => {
   const frame = useCurrentFrame();
   const logoOut = SCENES[0].durationInFrames; // when intro logo ends
   const total = SCENES.reduce((s, x) => s + x.durationInFrames, 0);
-  const ctaIn = total - SCENES[SCENES.length - 1].durationInFrames;
 
   const inOpacity = interpolate(
     frame,
-    [logoOut - 20, logoOut + 20],
+    [logoOut - 30, logoOut + 10],
     [0, 1],
     { extrapolateLeft: "clamp", extrapolateRight: "clamp" },
   );
   const outOpacity = interpolate(
     frame,
-    [ctaIn - 20, ctaIn + 20],
+    [total - 60, total - 20],
     [1, 0],
     { extrapolateLeft: "clamp", extrapolateRight: "clamp" },
   );

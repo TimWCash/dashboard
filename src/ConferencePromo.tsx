@@ -10,6 +10,9 @@ import { EventScene } from "./scenes/EventScene";
 import { ProblemsScene } from "./scenes/ProblemsScene";
 import { WhatWeDoScene } from "./scenes/WhatWeDoScene";
 import { CtaScene } from "./scenes/CtaScene";
+import { ProofScene } from "./scenes/ProofScene";
+import { ClientsScene } from "./scenes/ClientsScene";
+import { QuoteScene } from "./scenes/QuoteScene";
 
 const SCENE_COMPONENTS: Record<string, React.FC> = {
   logo: LogoScene,
@@ -18,6 +21,9 @@ const SCENE_COMPONENTS: Record<string, React.FC> = {
   problems: ProblemsScene,
   whatWeDo: WhatWeDoScene,
   cta: CtaScene,
+  proof: ProofScene,
+  clients: ClientsScene,
+  quote: QuoteScene,
 };
 
 export const ConferencePromo: React.FC = () => {
