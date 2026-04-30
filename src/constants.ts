@@ -12,19 +12,20 @@ export const BRAND = {
 };
 
 export const COLORS = {
-  // Deep, premium consulting palette.
-  bgDeep: "#070b14",
-  bgMid: "#0e1726",
-  bgSoft: "#152033",
-  ink: "#f5f7fb",
-  inkDim: "rgba(245, 247, 251, 0.72)",
-  inkFaint: "rgba(245, 247, 251, 0.42)",
-  // Signature gold accent — used sparingly.
-  accent: "#e8b86a",
-  accentBright: "#f5d199",
-  accentDeep: "#a47a3a",
-  rule: "rgba(232, 184, 106, 0.35)",
-  grid: "rgba(245, 247, 251, 0.05)",
+  // Service Physics brand palette — derived from the real logo and
+  // the booth-wall artwork (deep navy-teal + bright sea-teal).
+  bgDeep: "#051821",
+  bgMid: "#0a2731",
+  bgSoft: "#10394a",
+  ink: "#f4f7f7",
+  inkDim: "rgba(244, 247, 247, 0.72)",
+  inkFaint: "rgba(244, 247, 247, 0.42)",
+  // Bright teal accent replaces the prior gold.
+  accent: "#2da89e",
+  accentBright: "#5dc4b8",
+  accentDeep: "#115a6e",
+  rule: "rgba(45, 168, 158, 0.35)",
+  grid: "rgba(244, 247, 247, 0.05)",
 };
 
 export const TYPE = {

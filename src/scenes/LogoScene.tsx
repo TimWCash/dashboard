@@ -117,7 +117,7 @@ export const LogoScene: React.FC = () => {
             fontWeight: 500,
           }}
         >
-          OPERATIONS · DESIGN · THROUGHPUT
+          LABOR · SPEED · CONSULTING
         </div>
       </div>
     </AbsoluteFill>

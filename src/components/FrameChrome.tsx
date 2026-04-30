@@ -125,32 +125,37 @@ export const FrameChrome: React.FC = () => {
   );
 };
 
-// Tiny geometric mark used in the wordmark.
+// Service Physics "S" mark.
+// PLACEHOLDER: clean blocky angular S in the brand teal. The real
+// logo is two interlocking two-tone pieces — for pixel-perfect output
+// drop the official file into public/brand/logo.svg and swap this
+// component's body for:
+//   <Img src={staticFile("brand/logo.svg")} ... />
 export const Mark: React.FC<{ size?: number }> = ({ size = 64 }) => {
-  const stroke = Math.max(1.5, size / 18);
   return (
     <svg
-      width={size}
+      width={(size * 32) / 48}
       height={size}
-      viewBox="0 0 64 64"
+      viewBox="0 0 32 48"
       fill="none"
       style={{ display: "block" }}
     >
-      <circle
-        cx="32"
-        cy="32"
-        r="28"
-        stroke={COLORS.accent}
-        strokeWidth={stroke}
-      />
       <path
-        d="M14 38 Q24 14 32 32 T 50 26"
-        stroke={COLORS.accentBright}
-        strokeWidth={stroke}
-        strokeLinecap="round"
-        fill="none"
+        d="M 4 4
+           L 28 4
+           L 28 16
+           L 14 16
+           L 14 22
+           L 28 22
+           L 28 44
+           L 4 44
+           L 4 32
+           L 18 32
+           L 18 26
+           L 4 26
+           Z"
+        fill={COLORS.ink}
       />
-      <circle cx="32" cy="32" r={stroke * 1.2} fill={COLORS.accentBright} />
     </svg>
   );
 };
