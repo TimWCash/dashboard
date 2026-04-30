@@ -1,0 +1,24 @@
+{
+  "name": "service-physics-conference-promo",
+  "version": "1.0.0",
+  "description": "60-second Remotion conference promo for Service Physics",
+  "scripts": {
+    "start": "remotion studio",
+    "build": "remotion render ConferencePromo out/service-physics-promo.mp4",
+    "upgrade": "remotion upgrade"
+  },
+  "dependencies": {
+    "@remotion/bundler": "4.0.220",
+    "@remotion/cli": "4.0.220",
+    "@remotion/google-fonts": "4.0.220",
+    "@remotion/renderer": "4.0.220",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "remotion": "4.0.220"
+  },
+  "devDependencies": {
+    "@types/react": "18.3.3",
+    "@types/react-dom": "18.3.0",
+    "typescript": "5.4.5"
+  }
+}
