@@ -1,15 +1,22 @@
 {
   "name": "splitcab",
-  "version": "0.1.0",
   "private": true,
-  "description": "Match travellers heading the same way so they can share one taxi and split the fare. Only charged when matched.",
-  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
   "scripts": {
-    "start": "node server.js",
-    "demo": "node server.js --demo",
-    "test": "node --test test/*.test.js"
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "api:dev": "npm run dev -w @splitcab/api",
+    "api:migrate": "npm run migrate -w @splitcab/api",
+    "mobile": "npm run start -w @splitcab/mobile"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.3"
   }
 }
