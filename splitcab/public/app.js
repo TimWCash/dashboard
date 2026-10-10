@@ -15,6 +15,7 @@ const ui = {
   formOpen: false,
   busy: false,
   toast: null,
+  confirming: null,
   draft: defaultDraft(),
   chat: {},
   fare: {},
@@ -58,6 +59,24 @@ const icon = {
   info: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg>',
   swap: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v16M7 20l-3-3M7 20l3-3M17 20V4M17 4l-3 3M17 4l3 3"/></svg>',
 };
+
+// Destructive actions take a second tap instead of a dialog, which some embedded browsers block.
+const armed = (key, label, armedLabel) => (ui.confirming === key ? armedLabel : label);
+function confirmed(key) {
+  if (ui.confirming === key) {
+    ui.confirming = null;
+    return true;
+  }
+  ui.confirming = key;
+  render();
+  setTimeout(() => {
+    if (ui.confirming === key) {
+      ui.confirming = null;
+      render();
+    }
+  }, 4000);
+  return false;
+}
 
 function toast(message, kind = 'info') {
   ui.toast = { message, kind, id: Date.now() };
@@ -254,7 +273,7 @@ function searchingBody(t) {
       </div>
       <div class="note good">${icon.shield}<div>${money(t.payment.amount)} on hold — not charged unless you're matched.</div></div>
       <div class="btn-row">
-        <button class="btn ghost" data-action="cancel" data-trip="${t.id}" ${ui.busy ? 'disabled' : ''}>Cancel trip</button>
+        <button class="btn ghost" data-action="cancel" data-trip="${t.id}" ${ui.busy ? 'disabled' : ''}>${armed(`cancel:${t.id}`, 'Cancel trip', 'Tap again to cancel')}</button>
         ${api.demo ? `<button class="btn dark" data-action="demo-traveler" data-trip="${t.id}" ${ui.busy ? 'disabled' : ''}>Simulate a traveler nearby</button>` : ''}
       </div>
     </div>`;
@@ -327,7 +346,7 @@ function proposedBody(t) {
   const name = esc(m.partner.name);
   const actions = m.youAccepted
     ? `<div class="note warn">${icon.info}<div>You're in. Waiting for ${name} to accept · ${countdown(m.expiresAt)}</div></div>
-       <button class="btn link block" data-action="cancel" data-trip="${t.id}">Cancel trip</button>`
+       <button class="btn link block" data-action="cancel" data-trip="${t.id}">${armed(`cancel:${t.id}`, 'Cancel trip', 'Tap again to cancel')}</button>`
     : `<div class="btn-row">
          <button class="btn ghost" data-action="decline" data-match="${m.id}" ${ui.busy ? 'disabled' : ''}>Decline</button>
          <button class="btn primary" data-action="accept" data-match="${m.id}" ${ui.busy ? 'disabled' : ''}>Accept · ${money(m.plan.you.fee)}</button>
@@ -420,7 +439,7 @@ function confirmedBody(t) {
       </div>
       ${chat(m)}
       ${settle}
-      <button class="btn link block" data-action="cancel" data-trip="${t.id}">Cancel ride (fee not refunded)</button>
+      <button class="btn link block" data-action="cancel" data-trip="${t.id}">${armed(`cancel:${t.id}`, 'Cancel ride (fee not refunded)', 'Tap again to cancel. Your fee won’t be refunded')}</button>
     </div>`;
 }
 
@@ -506,7 +525,7 @@ function demoBar() {
              <select id="switch" data-action="switch">${api.riderId ? '' : '<option selected disabled>Pick…</option>'}${options}<option value="__new">+ New traveler</option></select>`
           : ''
       }
-      <button data-action="reset">Reset</button>
+      <button data-action="reset">${armed('reset', 'Reset', 'Tap to confirm')}</button>
     </div></div>`;
 }
 
@@ -584,7 +603,7 @@ root.addEventListener('click', (e) => {
     ui.formOpen = false;
     render();
   } else if (action === 'cancel') {
-    if (confirm('Cancel this trip?')) act(() => api.cancelTrip(trip), 'Trip cancelled.');
+    if (confirmed(`cancel:${trip}`)) act(() => api.cancelTrip(trip), 'Trip cancelled.');
   } else if (action === 'demo-traveler') {
     act(() => api.addNearbyTraveler(trip));
   } else if (action === 'accept') {
@@ -592,7 +611,7 @@ root.addEventListener('click', (e) => {
   } else if (action === 'decline') {
     act(() => api.respond(match, false), "Declined. We'll keep looking.");
   } else if (action === 'reset') {
-    if (confirm('Reset the demo? This clears all travelers and trips in this browser.')) api.reset();
+    if (confirmed('reset')) api.reset();
   }
 });
 
