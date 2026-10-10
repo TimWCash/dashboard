@@ -69,7 +69,7 @@ export async function buildApp(opts: BuildOptions): Promise<Built> {
   await app.register(helmet, { contentSecurityPolicy: false });
   const origins = config.CORS_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean);
   // The native app doesn't need CORS; allow listed origins for a web build during development.
-  await app.register(cors, { origin: origins.length ? origins : false });
+  await app.register(cors, { origin: origins.length ? origins : false, methods: ['GET', 'POST', 'PATCH', 'DELETE'] });
   if (config.NODE_ENV !== 'test') {
     await app.register(rateLimit, {
       max: 300,
