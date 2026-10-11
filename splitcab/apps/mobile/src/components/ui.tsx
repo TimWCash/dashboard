@@ -269,3 +269,24 @@ const styles = StyleSheet.create({
   segmented: { flexDirection: 'row', gap: 6 },
   segment: { flex: 1, minHeight: 44, borderRadius: radius.sm, borderWidth: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
 });
+
+// A tappable row in a settings-style list.
+export function LinkRow({ icon, label, onPress, detail }: { icon: Parameters<typeof Icon>[0]['name']; label: string; onPress: () => void; detail?: string }) {
+  const { c } = useTheme();
+  return (
+    <Pressable accessibilityRole="button" accessibilityLabel={detail ? `${label}, ${detail}` : label} onPress={onPress} style={{ paddingVertical: space.md, minHeight: 52 }}>
+      <Row>
+        <Icon name={icon} color={c.muted} />
+        <AppText variant="body" style={{ flex: 1 }}>
+          {label}
+        </AppText>
+        {detail ? (
+          <AppText variant="small" muted>
+            {detail}
+          </AppText>
+        ) : null}
+        <Icon name="chevron-forward" size={16} color={c.muted} />
+      </Row>
+    </Pressable>
+  );
+}

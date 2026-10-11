@@ -18,6 +18,7 @@ import type { Deps } from '../deps';
 import { AppError, badRequest, conflict, forbidden, notFound } from '../errors';
 import { enqueue } from '../jobs/queue';
 import { notify } from '../notifications';
+import { areaName, blurTrips, daysAgo, deleteOldRecords, RETENTION } from './retention';
 import type { AuthorizeResult } from '../providers/payments';
 import {
   getMatch,
@@ -76,6 +77,7 @@ export class RideService {
     const now = this.now();
     const user = await getUser(this.deps.db, userId);
     if (!user.first_name || !user.terms_accepted_at) throw conflict('profile_incomplete', 'Finish setting up your profile first.');
+    if (user.terms_version !== this.deps.config.TERMS_VERSION) throw conflict('terms_updated', 'Please read and accept the updated Terms and Privacy Policy first.');
     if (!user.payment_method_id || !user.stripe_customer_id) throw conflict('payment_method_required', 'Add a card before posting a trip.');
 
     const origin = cleanPlace(input.origin);
@@ -642,25 +644,15 @@ export class RideService {
         [userId, new Date(now)],
       );
       await tx.query('DELETE FROM refresh_tokens WHERE user_id = $1', [userId]);
-      // Trips stay for accounting and disputes, but without where the person lives or goes.
-      await tx.query(
-        `UPDATE trips SET origin_label = 'Removed', dest_label = 'Removed',
-           origin_lat = round(origin_lat::numeric, 2), origin_lng = round(origin_lng::numeric, 2),
-           dest_lat = round(dest_lat::numeric, 2), dest_lng = round(dest_lng::numeric, 2)
-         WHERE user_id = $1`,
-        [userId],
+      // Trips stay for accounting and disputes, but without where the person lives or goes, here and in the
+      // matched ride plans that copy their stops.
+      const { rows: theirs } = await tx.query<{ id: string }>('SELECT id FROM trips WHERE user_id = $1', [userId]);
+      await blurTrips(
+        tx,
+        theirs.map((r) => r.id),
+        now,
+        () => 'Removed',
       );
-      // Matched rides keep a copy of each stop in the plan; blur the ones at this person's own places too.
-      const { rows: plans } = await tx.query<{ id: string; plan: SharedPlan }>(
-        `SELECT DISTINCT m.id, m.plan FROM matches m JOIN trips t ON t.id IN (m.trip_a, m.trip_b) WHERE t.user_id = $1`,
-        [userId],
-      );
-      const theirs = new Set((await tx.query<{ id: string }>('SELECT id FROM trips WHERE user_id = $1', [userId])).rows.map((r) => r.id));
-      const blur = (n: number) => Math.round(n * 100) / 100;
-      for (const { id, plan } of plans) {
-        const route = plan.route.map((s) => (theirs.has(s.tripIds[0]!) ? { ...s, label: 'Removed', lat: blur(s.lat), lng: blur(s.lng) } : s));
-        await tx.query('UPDATE matches SET plan = $2 WHERE id = $1', [id, { ...plan, route }]);
-      }
       await tx.query('UPDATE reports SET details = NULL WHERE reporter_id = $1', [userId]);
       if (user.stripe_customer_id) await enqueue(tx, now, 'customer.delete', { customerId: user.stripe_customer_id });
     });
@@ -766,12 +758,60 @@ export class RideService {
     }
   }
 
-  // Data minimisation: chat and sign-in bookkeeping don't need to live forever.
-  async purgeOldData(messageRetentionDays = 90) {
+  // Storage limitation (GDPR Art. 5(1)(e)): nothing is kept longer than RETENTION says. Runs every few hours;
+  // each step works in batches, so a backlog clears over a few runs.
+  async purgeOldData() {
     const now = this.now();
-    await this.deps.db.query('DELETE FROM messages WHERE created_at < $1', [new Date(now - messageRetentionDays * 86_400_000)]);
+    const db = this.deps.db;
+    await db.query('DELETE FROM messages WHERE created_at < $1', [daysAgo(now, RETENTION.messagesDays)]);
     await this.deps.db.query('DELETE FROM otp_requests WHERE created_at < $1', [new Date(now - 86_400_000)]);
     await this.deps.db.query('DELETE FROM refresh_tokens WHERE expires_at < $1 OR revoked_at < $1', [new Date(now - 7 * 86_400_000)]);
     await this.deps.db.query('DELETE FROM jobs WHERE done_at < $1', [new Date(now - 30 * 86_400_000)]);
+    await db.query('DELETE FROM webhook_events WHERE received_at < $1', [daysAgo(now, 90)]);
+
+    // Exact places become a rough area after a year.
+    const { rows: aging } = await db.query<{ id: string }>(
+      'SELECT id FROM trips WHERE blurred_at IS NULL AND target_time < $1 AND status <> ALL($2) LIMIT 500',
+      [daysAgo(now, RETENTION.exactPlacesDays), ACTIVE],
+    );
+    if (aging.length) {
+      await withTx(db, (tx) =>
+        blurTrips(
+          tx,
+          aging.map((r) => r.id),
+          now,
+          areaName,
+        ),
+      );
+    }
+
+    await db.query('UPDATE reports SET details = NULL WHERE details IS NOT NULL AND created_at < $1', [daysAgo(now, RETENTION.reportDetailsDays)]);
+
+    // Accounts nobody has used for two years.
+    const { rows: idle } = await db.query<{ id: string }>(
+      `SELECT id FROM users u WHERE deleted_at IS NULL AND NOT is_demo AND last_active_at < $1
+         AND NOT EXISTS (SELECT 1 FROM trips t WHERE t.user_id = u.id AND t.status = ANY($2))
+       LIMIT 100`,
+      [daysAgo(now, RETENTION.inactiveAccountDays), ACTIVE],
+    );
+    for (const { id } of idle) await this.deleteAccount(id);
+
+    // Trip, payment and receipt records after six years, then what's left of deleted accounts.
+    const cutoff = daysAgo(now, RETENTION.recordsDays);
+    await withTx(db, (tx) => deleteOldRecords(tx, cutoff, ACTIVE));
+    await db.query('DELETE FROM reports WHERE created_at < $1', [cutoff]);
+    await db.query(
+      `DELETE FROM blocks b WHERE EXISTS (
+         SELECT 1 FROM users u WHERE u.id IN (b.blocker_id, b.blocked_id) AND (u.deleted_at < $1 OR u.is_demo))`,
+      [cutoff],
+    );
+    await db.query(
+      `DELETE FROM users u WHERE (u.deleted_at < $1 OR (u.is_demo AND u.created_at < $1))
+         AND NOT EXISTS (SELECT 1 FROM trips t WHERE t.user_id = u.id)
+         AND NOT EXISTS (SELECT 1 FROM payments p WHERE p.user_id = u.id)
+         AND NOT EXISTS (SELECT 1 FROM ratings r WHERE u.id IN (r.rater_id, r.ratee_id))
+         AND NOT EXISTS (SELECT 1 FROM reports r WHERE u.id IN (r.reporter_id, r.reported_id))`,
+      [cutoff],
+    );
   }
 }

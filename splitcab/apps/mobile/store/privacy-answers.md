@@ -64,6 +64,12 @@ Data not linked to you: **None.**
 
 ## Retention (also in the privacy policy)
 
-- Chat messages: deleted after 90 days (`purgeOldData` in the API).
+All enforced by `purgeOldData` in the API, with the periods in `packages/core/src/retention.ts`:
+
+- Chat messages: deleted after 90 days.
 - Sign-in records: code requests after 1 day, expired sessions after 7 days.
-- Deleted accounts: name, phone, Revolut username, card details and push token erased immediately; trips and payment records kept in anonymised form for accounting and dispute handling.
+- Exact pickup and drop-off places: replaced by the rough area after 1 year.
+- Safety report details: cleared after 2 years.
+- Accounts unused for 2 years: deleted.
+- Deleted accounts: name, phone, Revolut username, card details and push token erased immediately; trips and payment records kept without them, places blurred, for accounting and dispute handling.
+- Trip, payment and receipt records: deleted after 6 years.

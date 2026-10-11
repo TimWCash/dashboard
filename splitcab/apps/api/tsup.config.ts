@@ -2,7 +2,7 @@ import { defineConfig } from 'tsup';
 
 // Bundles the API and the shared core into one file; npm dependencies stay external.
 export default defineConfig({
-  entry: ['src/index.ts', 'src/migrate-cli.ts'],
+  entry: ['src/index.ts', 'src/migrate-cli.ts', 'src/ops-cli.ts'],
   format: ['esm'],
   target: 'node22',
   platform: 'node',

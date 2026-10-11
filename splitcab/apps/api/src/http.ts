@@ -20,8 +20,13 @@ export function authenticate(deps: Deps) {
     if (!header?.startsWith('Bearer ')) throw unauthorized();
     const userId = await deps.tokens.verifyAccess(header.slice(7));
     // Access tokens live for minutes, but a deleted account must lose access immediately.
-    const { rowCount } = await deps.db.query('SELECT 1 FROM users WHERE id = $1 AND deleted_at IS NULL', [userId]);
-    if (!rowCount) throw unauthorized();
+    const { rows } = await deps.db.query<{ last_active_at: Date }>('SELECT last_active_at FROM users WHERE id = $1 AND deleted_at IS NULL', [userId]);
+    if (!rows[0]) throw unauthorized();
+    // Accounts unused for two years are deleted, so note use (at most once a day).
+    const now = deps.clock();
+    if (rows[0].last_active_at.getTime() < now - 86_400_000) {
+      await deps.db.query('UPDATE users SET last_active_at = $2 WHERE id = $1', [userId, new Date(now)]);
+    }
     req.userId = userId;
   };
 }

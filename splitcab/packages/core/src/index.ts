@@ -5,3 +5,4 @@ export * from './pricing';
 export * from './matching';
 export * from './places';
 export * from './api';
+export * from './retention';

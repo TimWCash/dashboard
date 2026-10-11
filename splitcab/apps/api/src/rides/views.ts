@@ -1,6 +1,7 @@
-import { CONFIG, haversineKm, PLACES, type LatLng, type MatchView, type MeView, type PaymentView, type ReceiptView, type RouteStop, type TripView } from '@splitcab/core';
+import { CONFIG, haversineKm, type LatLng, type MatchView, type MeView, type PaymentView, type ReceiptView, type RouteStop, type TripView } from '@splitcab/core';
 import type { Queryable } from '../db';
 import { conflict, notFound } from '../errors';
+import { nearestArea } from './retention';
 import { acceptedAt, getMatch, getOwnTrip, getPayment, partnerTripId, type MatchRow, type TripRow, type UserRow } from './rows';
 
 const iso = (d: Date | number) => new Date(d).toISOString();
@@ -10,13 +11,17 @@ export function ratingAvg(u: Pick<UserRow, 'rating_sum' | 'rating_count'>): numb
   return u.rating_count > 0 ? Math.round((u.rating_sum / u.rating_count) * 10) / 10 : null;
 }
 
-export function meView(u: UserRow): MeView {
+// `termsVersion` is the current version of the Terms and Privacy Policy; anyone who agreed to an older one is
+// asked again before their next trip.
+export function meView(u: UserRow, termsVersion: string): MeView {
+  const termsCurrent = Boolean(u.terms_accepted_at) && u.terms_version === termsVersion;
   return {
     id: u.id,
     phone: u.phone ?? '',
     firstName: u.first_name,
     termsAcceptedAt: isoOrNull(u.terms_accepted_at),
-    profileComplete: Boolean(u.first_name && u.terms_accepted_at),
+    profileComplete: Boolean(u.first_name) && termsCurrent,
+    termsUpdated: Boolean(u.terms_accepted_at) && !termsCurrent,
     paymentMethod: u.payment_method_id ? { brand: u.payment_method_brand ?? 'card', last4: u.payment_method_last4 ?? '' } : null,
     ratingAvg: ratingAvg(u),
     ridesCompleted: u.rides_completed,
@@ -39,12 +44,8 @@ const FIVE_MIN = 5 * 60_000;
 // A coarse description of someone else's stop: the nearest well-known place, or a distance band. Never their
 // exact address, which could be their home.
 function areaLabel(point: LatLng, from: LatLng): string {
-  let best: { label: string; km: number } | null = null;
-  for (const p of PLACES) {
-    const km = haversineKm(point, p);
-    if (km <= 2.5 && (!best || km < best.km)) best = { label: p.label, km };
-  }
-  if (best) return `${best.label.replace(/ \(.*\)$/, '')} area`;
+  const area = nearestArea(point);
+  if (area) return `${area} area`;
   const km = Math.max(0.5, Math.round(haversineKm(point, from) * 2) / 2);
   return `About ${km} km from you`;
 }

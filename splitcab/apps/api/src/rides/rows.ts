@@ -20,6 +20,8 @@ export interface UserRow {
   is_demo: boolean;
   is_reviewer: boolean;
   revtag: string | null;
+  terms_version: string | null;
+  last_active_at: Date;
 }
 
 export interface TripRow {

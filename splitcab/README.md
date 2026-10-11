@@ -9,7 +9,7 @@ apps/site       Static support site: privacy policy, terms, support, account del
 apps/demo       Browser-only demo: the app's web build with the real API running in the page
 packages/core   Shared TypeScript: fare model, matching engine, places, API types
 prototype       The original single-page web demo (not maintained)
-docs            Launch checklist
+docs            Launch checklist and GDPR operations
 ```
 
 ## How it works
@@ -46,6 +46,10 @@ TEST_DATABASE_URL=postgres://postgres@127.0.0.1:5432/splitcab_test npm test -w @
 ```
 
 The API tests run against a real Postgres database. They cover sign-in, wrong-code lockouts and token rotation, the full ride lifecycle, holds, captures, releases and refunds (including captures that race a release), 3-D Secure, cancellations before and after pickup, blocking and reporting, chat and name filtering, privacy of the other rider's stops before both accept, posting limits and pair cooldowns, concurrent matching, account deletion and export, the store review account, production config guards, and signed Stripe webhooks. CI (`.github/workflows/splitcab.yml`) runs these plus the mobile typecheck, iOS/Android bundles and the API Docker build.
+
+## Privacy and GDPR
+
+Retention limits run automatically (`apps/api/src/rides/retention.ts`, periods in `packages/core/src/retention.ts`). People can download, correct and delete their data under Account → Privacy & your data. Support handles requests that arrive by email with `npm run ops -w @splitcab/api -- export|delete <phone>`. See [`docs/gdpr.md`](docs/gdpr.md) for the records of processing, data requests, breaches and the DPIA starter.
 
 ## Browser demo
 

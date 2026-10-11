@@ -42,6 +42,8 @@ export default function AppLayout() {
       <Stack.Screen name="how-it-works" options={{ title: 'How SplitCab works' }} />
       <Stack.Screen name="revtag" options={{ presentation: 'modal', title: 'Revolut' }} />
       <Stack.Screen name="receipt/[tripId]" options={{ title: 'Receipt' }} />
+      <Stack.Screen name="privacy" options={{ title: 'Privacy & your data' }} />
+      <Stack.Screen name="name" options={{ presentation: 'modal', title: 'Your name' }} />
     </Stack>
   );
 }

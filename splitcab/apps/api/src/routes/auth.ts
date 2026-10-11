@@ -18,7 +18,7 @@ export function authRoutes(app: FastifyInstance, deps: Deps) {
   async function issue(userId: string, user: UserRow): Promise<AuthResponse> {
     const access = await deps.tokens.signAccess(userId);
     const refreshToken = await deps.tokens.issueRefresh(deps.db, userId);
-    return { accessToken: access.token, accessTokenExpiresAt: access.expiresAt.toISOString(), refreshToken, user: meView(user) };
+    return { accessToken: access.token, accessTokenExpiresAt: access.expiresAt.toISOString(), refreshToken, user: meView(user, deps.config.TERMS_VERSION) };
   }
 
   const countries = deps.config.ALLOWED_PHONE_COUNTRIES;
@@ -53,8 +53,8 @@ export function authRoutes(app: FastifyInstance, deps: Deps) {
     const reviewer = Boolean(deps.config.REVIEW_PHONE) && phone === deps.config.REVIEW_PHONE;
     const user = await withTx(deps.db, async (tx) => {
       const { rows } = await tx.query<UserRow>(
-        `INSERT INTO users (phone, is_reviewer, created_at) VALUES ($1, $2, $3)
-         ON CONFLICT (phone) DO UPDATE SET is_reviewer = users.is_reviewer OR EXCLUDED.is_reviewer
+        `INSERT INTO users (phone, is_reviewer, created_at, last_active_at) VALUES ($1, $2, $3, $3)
+         ON CONFLICT (phone) DO UPDATE SET is_reviewer = users.is_reviewer OR EXCLUDED.is_reviewer, last_active_at = EXCLUDED.last_active_at
          RETURNING *`,
         [phone, reviewer, new Date(deps.clock())],
       );
@@ -72,7 +72,7 @@ export function authRoutes(app: FastifyInstance, deps: Deps) {
     const user = rows[0];
     if (!user) throw unauthorized('This account has been deleted.');
     const access = await deps.tokens.signAccess(user.id);
-    return { accessToken: access.token, accessTokenExpiresAt: access.expiresAt.toISOString(), refreshToken: rotated.refreshToken, user: meView(user) };
+    return { accessToken: access.token, accessTokenExpiresAt: access.expiresAt.toISOString(), refreshToken: rotated.refreshToken, user: meView(user, deps.config.TERMS_VERSION) };
   });
 
   app.post('/v1/auth/logout', { preHandler: authenticate(deps) }, async (req, reply) => {

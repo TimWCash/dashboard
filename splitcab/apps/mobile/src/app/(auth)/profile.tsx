@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform } from 'react-native';
-import { AppText, Button, Field, Screen } from '../../components/ui';
+import { AppText, Button, Field, Note, Screen } from '../../components/ui';
 import { api, ApiError } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 import { useConfig } from '../../lib/queries';
@@ -34,25 +34,45 @@ export default function Profile() {
     </AppText>
   );
 
+  // Someone who agreed to an earlier version sees what changed and agrees again.
+  const updated = Boolean(me?.termsUpdated && me.firstName);
+  const action = updated ? 'Agree and continue' : 'Get started';
+
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <Screen
         footer={
           <>
             <AppText variant="small" muted>
-              By tapping Get started, you confirm you're 18 or over and agree to our {link('Terms of Service', config.data?.termsUrl)} and {link('Privacy Policy', config.data?.privacyUrl)}.
+              By tapping {action}, you confirm you're 18 or over and agree to our {link('Terms of Service', config.data?.termsUrl)} and{' '}
+              {link('Privacy Policy', config.data?.privacyUrl)}.
             </AppText>
-            <Button title="Get started" onPress={save} loading={busy} disabled={!name.trim()} />
+            <Button title={action} onPress={save} loading={busy} disabled={!name.trim()} />
           </>
         }
       >
-        <AppText variant="title" accessibilityRole="header">
-          What should we call you?
-        </AppText>
-        <AppText variant="body" muted>
-          Your travel partner sees your first name and rating. Nothing else until you've both said yes.
-        </AppText>
-        <Field label="First name" value={name} onChangeText={setName} autoComplete="given-name" textContentType="givenName" autoFocus maxLength={40} error={error} testID="name-input" />
+        {updated ? (
+          <>
+            <AppText variant="title" accessibilityRole="header">
+              We've updated our Terms and Privacy Policy
+            </AppText>
+            <AppText variant="body" muted>
+              Please read them before your next trip. You can see what we keep, and download or delete your data, any time under Account → Privacy
+              & your data.
+            </AppText>
+          </>
+        ) : (
+          <>
+            <AppText variant="title" accessibilityRole="header">
+              What should we call you?
+            </AppText>
+            <AppText variant="body" muted>
+              Your travel partner sees your first name and rating. Nothing else until you've both said yes.
+            </AppText>
+            <Field label="First name" value={name} onChangeText={setName} autoComplete="given-name" textContentType="givenName" autoFocus maxLength={40} error={error} testID="name-input" />
+          </>
+        )}
+        {updated && error ? <Note tone="bad">{error}</Note> : null}
       </Screen>
     </KeyboardAvoidingView>
   );

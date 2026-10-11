@@ -7,6 +7,7 @@ import { badRequest } from '../errors';
 import { authenticate, parse } from '../http';
 import { createModerator } from '../moderation';
 import { normalizeRevtag } from '../revtag';
+import { RETENTION } from '../rides/retention';
 import { getUser, type UserRow } from '../rides/rows';
 import type { RideService } from '../rides/service';
 import { listPaymentViews, meView } from '../rides/views';
@@ -28,7 +29,7 @@ export function meRoutes(app: FastifyInstance, deps: Deps, rides: RideService) {
     supportEmail: deps.config.SUPPORT_EMAIL,
   }));
 
-  app.get('/v1/me', auth, async (req): Promise<MeView> => meView(await getUser(deps.db, req.userId)));
+  app.get('/v1/me', auth, async (req): Promise<MeView> => meView(await getUser(deps.db, req.userId), deps.config.TERMS_VERSION));
 
   app.patch('/v1/me', auth, async (req): Promise<MeView> => {
     const body = parse(
@@ -61,13 +62,14 @@ export function meRoutes(app: FastifyInstance, deps: Deps, rides: RideService) {
     const { rows } = await deps.db.query<UserRow>(
       `UPDATE users SET
          first_name = COALESCE($2, first_name),
-         terms_accepted_at = CASE WHEN $3 AND terms_accepted_at IS NULL THEN $4 ELSE terms_accepted_at END,
+         terms_accepted_at = CASE WHEN $3 THEN $4 ELSE terms_accepted_at END,
+         terms_version = CASE WHEN $3 THEN $9 ELSE terms_version END,
          push_token = CASE WHEN $5 THEN $6 ELSE push_token END,
          revtag = CASE WHEN $7 THEN $8 ELSE revtag END
        WHERE id = $1 RETURNING *`,
-      [req.userId, body.firstName ?? null, body.acceptTerms === true, now, body.pushToken !== undefined, body.pushToken ?? null, body.revtag !== undefined, revtag],
+      [req.userId, body.firstName ?? null, body.acceptTerms === true, now, body.pushToken !== undefined, body.pushToken ?? null, body.revtag !== undefined, revtag, deps.config.TERMS_VERSION],
     );
-    return meView(rows[0]!);
+    return meView(rows[0]!, deps.config.TERMS_VERSION);
   });
 
   app.delete('/v1/me', auth, async (req, reply) => {
@@ -85,6 +87,8 @@ export function meRoutes(app: FastifyInstance, deps: Deps, rides: RideService) {
         phone: user.phone,
         firstName: user.first_name,
         termsAcceptedAt: user.terms_accepted_at,
+        termsVersion: user.terms_version,
+        lastActiveAt: user.last_active_at,
         createdAt: user.created_at,
         card: user.payment_method_last4 ? `${user.payment_method_brand} ending ${user.payment_method_last4}` : null,
         revtag: user.revtag,
@@ -101,6 +105,8 @@ export function meRoutes(app: FastifyInstance, deps: Deps, rides: RideService) {
       ratingsGiven: await q('SELECT match_id, stars, created_at FROM ratings WHERE rater_id = $1'),
       reportsFiled: await q('SELECT match_id, reason, details, created_at FROM reports WHERE reporter_id = $1'),
       blocks: await q('SELECT created_at FROM blocks WHERE blocker_id = $1'),
+      // Reports other people made about you aren't included, to protect the people who made them (GDPR Art. 15(4)).
+      howLongWeKeepThis: RETENTION,
     };
   });
 
@@ -129,10 +135,10 @@ export function meRoutes(app: FastifyInstance, deps: Deps, rides: RideService) {
           'UPDATE users SET payment_method_id = $2, payment_method_brand = $3, payment_method_last4 = $4 WHERE id = $1 RETURNING *',
           [user.id, card.id, card.brand, card.last4],
         );
-        return meView(rows[0]!);
+        return meView(rows[0]!, deps.config.TERMS_VERSION);
       }
     }
-    return meView(user);
+    return meView(user, deps.config.TERMS_VERSION);
   });
 
   app.get('/v1/payments', auth, async (req): Promise<PaymentView[]> => listPaymentViews(deps.db, req.userId));

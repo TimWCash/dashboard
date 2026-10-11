@@ -3,8 +3,8 @@ import * as Clipboard from 'expo-clipboard';
 import { router, useFocusEffect } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { useCallback, useState } from 'react';
-import { Linking, Pressable, ScrollView, Share, View } from 'react-native';
-import { AppText, Avatar, Button, Card, Icon, Note, Row } from '../../../components/ui';
+import { Linking, Pressable, ScrollView, View } from 'react-native';
+import { AppText, Avatar, Button, Card, Icon, LinkRow, Note, Row } from '../../../components/ui';
 import { api, ApiError, setSession } from '../../../lib/api';
 import { useAuth } from '../../../lib/auth';
 import { confirmDestructive } from '../../../lib/confirm';
@@ -13,26 +13,6 @@ import { useCardPayments } from '../../../lib/payments';
 import { pushStatus, registerForPush, type PushStatus } from '../../../lib/push';
 import { useConfig } from '../../../lib/queries';
 import { space, useTheme } from '../../../lib/theme';
-
-function LinkRow({ icon, label, onPress, detail }: { icon: Parameters<typeof Icon>[0]['name']; label: string; onPress: () => void; detail?: string }) {
-  const { c } = useTheme();
-  return (
-    <Pressable accessibilityRole="button" accessibilityLabel={detail ? `${label}, ${detail}` : label} onPress={onPress} style={{ paddingVertical: space.md, minHeight: 52 }}>
-      <Row>
-        <Icon name={icon} color={c.muted} />
-        <AppText variant="body" style={{ flex: 1 }}>
-          {label}
-        </AppText>
-        {detail ? (
-          <AppText variant="small" muted>
-            {detail}
-          </AppText>
-        ) : null}
-        <Icon name="chevron-forward" size={16} color={c.muted} />
-      </Row>
-    </Pressable>
-  );
-}
 
 export default function Account() {
   const { c } = useTheme();
@@ -51,15 +31,6 @@ export default function Account() {
 
   const support = config.data?.supportEmail ?? 'support@splitcab.ie';
   const fail = (e: unknown, fallback: string) => setMessage({ tone: 'bad', text: e instanceof ApiError ? e.message : fallback });
-
-  async function exportData() {
-    try {
-      const data = await api.get<object>('/v1/me/export');
-      await Share.share({ title: 'My SplitCab data', message: JSON.stringify(data, null, 2) });
-    } catch (e) {
-      fail(e, "Couldn't export your data.");
-    }
-  }
 
   async function notifications() {
     if (push === 'askable') {
@@ -114,6 +85,9 @@ export default function Account() {
               {`${trips} shared trip${trips === 1 ? '' : 's'}`}
             </AppText>
           </View>
+          <Pressable accessibilityRole="button" accessibilityLabel="Edit your name" onPress={() => router.push('/name')} hitSlop={12}>
+            <Icon name="create-outline" color={c.muted} />
+          </Pressable>
         </Row>
       </Card>
 
@@ -146,7 +120,7 @@ export default function Account() {
         <LinkRow icon="mail-outline" label="Contact support" onPress={contact} />
         <LinkRow icon="document-text-outline" label="Terms of Service" onPress={() => config.data && WebBrowser.openBrowserAsync(config.data.termsUrl)} />
         <LinkRow icon="lock-closed-outline" label="Privacy Policy" onPress={() => config.data && WebBrowser.openBrowserAsync(config.data.privacyUrl)} />
-        <LinkRow icon="download-outline" label="Download my data" onPress={exportData} />
+        <LinkRow icon="shield-checkmark-outline" label="Privacy & your data" onPress={() => router.push('/privacy')} />
       </Card>
 
       <Button title="Sign out" variant="ghost" onPress={signOut} />

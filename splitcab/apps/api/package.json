@@ -9,7 +9,8 @@
     "start": "node dist/index.js",
     "migrate": "tsx --env-file-if-exists=.env src/migrate-cli.ts",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "ops": "tsx --env-file-if-exists=.env src/ops-cli.ts"
   },
   "dependencies": {
     "@fastify/cors": "^11.3.1",

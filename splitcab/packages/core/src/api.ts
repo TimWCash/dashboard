@@ -42,6 +42,8 @@ export interface MeView {
   firstName: string | null;
   termsAcceptedAt: ISODate | null;
   profileComplete: boolean;
+  // They agreed to an earlier version of the Terms and Privacy Policy and need to see the new one.
+  termsUpdated: boolean;
   paymentMethod: PaymentMethodView | null;
   ratingAvg: number | null;
   ridesCompleted: number;
