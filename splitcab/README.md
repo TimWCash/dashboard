@@ -51,9 +51,26 @@ The API tests run against a real Postgres database. They cover sign-in, wrong-co
 
 Retention limits run automatically (`apps/api/src/rides/retention.ts`, periods in `packages/core/src/retention.ts`). People can download, correct and delete their data under Account → Privacy & your data. Support handles requests that arrive by email with `npm run ops -w @splitcab/api -- export|delete <phone>`. See [`docs/gdpr.md`](docs/gdpr.md) for the records of processing, data requests, breaches and the DPIA starter.
 
-## Browser demo
+## Demo
 
-`npm run demo:build` builds a static site in `apps/demo/dist` that anyone can try without a server or an account. The API's own route, matching and payment code runs in the page on PGlite (Postgres compiled to WebAssembly), saved in the browser's IndexedDB. Sign-in codes are shown on screen, cards are simulated, and every trip is matched with a pretend traveller. `vercel.json` deploys it to Vercel with the project root set to `splitcab`.
+The app's web build, with sign-in codes shown on screen and simulated cards. Two versions:
+
+- **Shared** (`npm run demo:build:server`): the real API runs as a Vercel Function on a Postgres database, so two people on different phones match each other. If nobody else is looking, a pretend traveller joins after `DEMO_PARTNER_AFTER_S` seconds (45 by default). Either rider can skip to after the ride.
+- **One person** (`npm run demo:build`, a static site in `apps/demo/dist`): the API runs in the page on PGlite (Postgres compiled to WebAssembly), saved in the browser. Every trip is matched with the pretend traveller. No server needed.
+
+`vercel.json` deploys to Vercel with the project root set to `splitcab`. It builds the shared version when the project has a `DATABASE_URL`, and the one-person version otherwise. The shared version needs these Vercel environment variables:
+
+| Variable | Value |
+|---|---|
+| `DATABASE_URL` | A Postgres database used only for the demo. With Supabase, use the transaction pooler (port 6543) and a dedicated role. |
+| `DATABASE_TRANSACTION_POOLER` | `true` with a transaction pooler. Then set the timeouts on the role: `ALTER ROLE … SET statement_timeout = '10s'; ALTER ROLE … SET idle_in_transaction_session_timeout = '30s';` |
+| `DATABASE_SSL_CA` | The database's CA certificate (PEM), when it isn't publicly signed (Supabase's pooler). |
+| `JWT_SECRET` | 32+ random characters. |
+| `NODE_ENV`, `DEMO_MODE`, `OTP_PROVIDER` | `production`, `true`, `demo` |
+| `PAYMENTS_PROVIDER`, `PUSH_PROVIDER`, `PLACES_PROVIDER` | `test`, `log`, `builtin` |
+| `TRUST_PROXY_HOPS`, `DATABASE_POOL_MAX` | `1`, `2` |
+
+`DEMO_MODE` refuses live Stripe keys and Twilio, and its sign-in codes are derived from `JWT_SECRET`, so no SMS is ever sent. Migrations run when the function starts. Retention rules run every 6 hours, as in production, except that demo accounts are deleted after a day without use.
 
 ## Deploying
 

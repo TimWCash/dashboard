@@ -41,6 +41,8 @@ const config: ExpoConfig = {
     'expo-secure-store',
     'expo-web-browser',
     'expo-sharing',
+    // Apple Maps on iOS needs no key; Android's Google Maps does.
+    ['react-native-maps', { androidGoogleMapsApiKey: process.env.GOOGLE_MAPS_ANDROID_API_KEY }],
     'expo-font',
     '@react-native-community/datetimepicker',
     ['expo-splash-screen', { image: './assets/splash-icon.png', imageWidth: 160, backgroundColor: '#FFC629' }],

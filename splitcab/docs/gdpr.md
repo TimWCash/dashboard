@@ -62,7 +62,9 @@ Sign a data processing agreement (DPA) with each processor and list them in the 
 | Twilio Verify | Phone numbers, sign-in codes | US | DPF / SCCs | [ ] |
 | Expo push service | Push tokens, notification text | US | DPF / SCCs | [ ] |
 | Google Maps Platform (if enabled) | Search text, approximate location | US | DPF / SCCs | [ ] |
-| Vercel (browser demo only) | Static files; the demo stores its data in the visitor's own browser | EU/US | Not personal data on the server | n/a |
+| Trip map: Google Maps SDK (Android) | The map area being viewed, device IP and identifiers | US | DPF / SCCs | Google Maps Platform terms [ ] |
+| Trip map: Apple MapKit (iPhone) | The map area being viewed | Apple's own terms with the user | Apple acts for the user, not SplitCab | n/a |
+| Demo only: Vercel and Supabase (EU) | The shared demo's accounts and trips. An account unused for a day is deleted as if its owner had deleted it, since people may try the demo with their real number. The one-person demo keeps everything in the visitor's browser. Map tiles come from OpenStreetMap. | EU (Dublin) | None needed | Vercel and Supabase terms [ ] |
 
 Revolut is not a processor. Riders pay each other under Revolut's own terms; SplitCab only links to the booker's public Revolut page.
 

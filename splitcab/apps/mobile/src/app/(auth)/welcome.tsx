@@ -2,7 +2,7 @@ import { formatMoney } from '@splitcab/core';
 import { router } from 'expo-router';
 import { Image, StyleSheet, View } from 'react-native';
 import { AppText, Button, Card, Note, Screen } from '../../components/ui';
-import { DEMO } from '../../lib/demo';
+import { DEMO, DEMO_SHARED } from '../../lib/demo';
 import { useConfig } from '../../lib/queries';
 import { space, useTheme } from '../../lib/theme';
 
@@ -53,8 +53,9 @@ export default function Welcome() {
       </Card>
       {DEMO ? (
         <Note>
-          This is a demo. Use any Irish mobile number: no text is sent and no card is charged. You'll be matched with a pretend
-          traveller, and everything stays in this browser.
+          {DEMO_SHARED
+            ? "This is a demo. Use any Irish mobile number: no text is sent and no card is charged. Try it with a friend on another phone and you'll be matched with each other. If nobody else is looking, a pretend traveller joins after a moment."
+            : "This is a demo. Use any Irish mobile number: no text is sent and no card is charged. You'll be matched with a pretend traveller, and everything stays in this browser."}
         </Note>
       ) : null}
     </Screen>

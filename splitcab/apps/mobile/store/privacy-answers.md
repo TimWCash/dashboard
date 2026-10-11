@@ -19,7 +19,7 @@ Answers for **App Store Connect → App Privacy** and **Play Console → Data sa
 
 Not collected: contacts, photos, browsing history, health data, advertising identifiers, analytics or crash data (none in this build). No tracking across other companies' apps or websites, so no App Tracking Transparency prompt is needed.
 
-Service providers that process data on SplitCab's behalf: Stripe (payments), Twilio (SMS codes), Expo (push delivery), Google Maps Platform (place search, if enabled), and the hosting provider. Under both stores' definitions this is processing by service providers, not "sharing".
+Service providers that process data on SplitCab's behalf: Stripe (payments), Twilio (SMS codes), Expo (push delivery), Google Maps Platform (place search, if enabled; the Maps SDK draws the trip map on Android), and the hosting provider. Before submitting to Google Play, check Google's Data safety guidance for the Maps SDK for Android and add anything it lists. Apple's MapKit, which draws the map on iPhone, needs no entry. Under both stores' definitions this is processing by service providers, not "sharing".
 
 ## App Store Connect → App Privacy
 

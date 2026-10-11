@@ -1,7 +1,7 @@
 // Runs the real SplitCab API inside the browser, so the app can be tried with no server. Requests the app
 // makes to DEMO_API_URL are answered here, from an in-browser Postgres (PGlite) saved in IndexedDB.
 // Payments use the test gateway, sign-in codes are shown on screen, and every trip is matched with a
-// pretend traveller (the store review companion), since there's nobody else in a browser to match with.
+// pretend traveller, since there's nobody else in a browser to match with.
 import { PGlite } from '@electric-sql/pglite';
 import type { FastifyBaseLogger, FastifyInstance } from 'fastify';
 import migrations from 'virtual:migrations';
@@ -23,35 +23,6 @@ import { rideRoutes } from '../../api/src/routes/rides';
 import { DemoApp, type Logger } from './router';
 
 export const DEMO_API_URL = 'https://api.splitcab.demo';
-
-// Visitors can jump ahead to after the ride instead of waiting for it. The page's clock moves forward for the
-// app and the API alike, and stays moved after a reload.
-const CLOCK_KEY = 'splitcab-demo-clock-offset';
-const RealDate = Date;
-let clockOffset = 0;
-try {
-  clockOffset = Number(localStorage.getItem(CLOCK_KEY)) || 0;
-} catch {}
-if (clockOffset) {
-  const ShiftedDate = function (this: unknown, ...args: unknown[]) {
-    if (!new.target) return new RealDate(RealDate.now() + clockOffset).toString();
-    return args.length ? new (RealDate as unknown as new (...a: unknown[]) => Date)(...args) : new RealDate(RealDate.now() + clockOffset);
-  } as unknown as DateConstructor;
-  Object.setPrototypeOf(ShiftedDate, RealDate);
-  Object.defineProperty(ShiftedDate, 'prototype', { value: RealDate.prototype });
-  ShiftedDate.now = () => RealDate.now() + clockOffset;
-  globalThis.Date = ShiftedDate;
-}
-Object.assign(globalThis, {
-  splitcabDemo: {
-    skipTo(time: number) {
-      try {
-        localStorage.setItem(CLOCK_KEY, String(Math.max(clockOffset, clockOffset + time - Date.now())));
-      } catch {}
-      location.reload();
-    },
-  },
-});
 
 const log: Logger = {
   level: 'warn',
@@ -90,13 +61,8 @@ async function migrate(pg: PGlite) {
       await tx.query('INSERT INTO schema_migrations (name) VALUES ($1)', [name]);
     });
   }
-  // Everyone in the demo gets the review account's pretend travel partner.
-  await pg.exec(`
-    CREATE OR REPLACE FUNCTION demo_partner() RETURNS trigger AS $$
-    BEGIN NEW.is_reviewer := NOT NEW.is_demo; RETURN NEW; END $$ LANGUAGE plpgsql;
-    DROP TRIGGER IF EXISTS demo_partner ON users;
-    CREATE TRIGGER demo_partner BEFORE INSERT ON users FOR EACH ROW EXECUTE FUNCTION demo_partner();
-  `);
+  // Earlier versions of this demo marked everyone as a store reviewer instead of using DEMO_MODE.
+  await pg.exec('DROP TRIGGER IF EXISTS demo_partner ON users; DROP FUNCTION IF EXISTS demo_partner();');
 }
 
 async function boot() {
@@ -113,6 +79,9 @@ async function boot() {
     PAYMENTS_PROVIDER: 'test',
     PLACES_PROVIDER: 'builtin',
     PUSH_PROVIDER: 'log',
+    // There's nobody else in a browser to match with, so the pretend partner arrives almost at once.
+    DEMO_MODE: 'true',
+    DEMO_PARTNER_AFTER_S: '2',
   });
   const clock = () => Date.now();
   const deps: Deps = {

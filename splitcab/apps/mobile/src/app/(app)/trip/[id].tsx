@@ -4,18 +4,20 @@ import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Linking, Pressable, View } from 'react-native';
 import { QrCode } from '../../../components/QrCode';
+import { RouteMap } from '../../../components/RouteMap';
 import { BookingLine, Countdown, MatchFacts, PartnerRow, PriceBreakdown, Pulse, RouteTimeline, SafetyButton, TripHeader } from '../../../components/ride';
 import { AppText, Button, Card, Divider, Field, Icon, Note, Row, Screen } from '../../../components/ui';
 import { ApiError } from '../../../lib/api';
 import { useAuth } from '../../../lib/auth';
-import { DEMO, skipTo } from '../../../lib/demo';
+import { DEMO } from '../../../lib/demo';
 import { bookingOptions } from '../../../lib/booking';
 import { confirmDestructive } from '../../../lib/confirm';
 import { clock, money, parseEuro } from '../../../lib/format';
+import { mapPoints } from '../../../lib/mapPoints';
 import { useCardPayments } from '../../../lib/payments';
 import { updateDraft } from '../../../lib/planDraft';
 import { pushStatus, registerForPush, type PushStatus } from '../../../lib/push';
-import { useCancelTrip, useComplete, useConfig, useConfirmHold, useMarkPaid, useRate, useRespond, useTrip } from '../../../lib/queries';
+import { useCancelTrip, useComplete, useConfig, useConfirmHold, useDemoFinishRide, useMarkPaid, useRate, useRespond, useTrip } from '../../../lib/queries';
 import { revolutLink } from '../../../lib/revolut';
 import { space, useTheme } from '../../../lib/theme';
 
@@ -187,6 +189,7 @@ function Searching({ trip, onError }: Section) {
             </AppText>
           </View>
         </Row>
+        <RouteMap points={mapPoints(trip)} height={150} />
       </Card>
       <NotificationsPrompt />
       <CancelButton trip={trip} onError={onError} warning="The hold on your card is released. You won't be charged." />
@@ -201,6 +204,7 @@ function Proposed({ trip, match, onError }: Section & { match: MatchView }) {
     <>
       <Card>
         <PartnerRow match={match} />
+        <RouteMap points={mapPoints(trip, match)} />
         <RouteTimeline match={match} />
       </Card>
       <PriceBreakdown match={match} />
@@ -248,6 +252,7 @@ function Proposed({ trip, match, onError }: Section & { match: MatchView }) {
 
 function Confirmed({ trip, match, onError }: Section & { match: MatchView }) {
   const complete = useComplete();
+  const finishRide = useDemoFinishRide();
   const [fare, setFare] = useState('');
   const [copied, setCopied] = useState(false);
   const name = match.partner.firstName;
@@ -310,6 +315,7 @@ function Confirmed({ trip, match, onError }: Section & { match: MatchView }) {
 
       <Card>
         <PartnerRow match={match} />
+        <RouteMap points={mapPoints(trip, match)} />
         <RouteTimeline match={match} />
         <Button title={`Message ${name}`} icon="chatbubble-ellipses-outline" variant="ghost" onPress={() => router.push(chatPath(match, trip))} />
       </Card>
@@ -337,16 +343,12 @@ function Confirmed({ trip, match, onError }: Section & { match: MatchView }) {
               <Button title="Split the fare" onPress={settle} loading={complete.isPending} disabled={!fare} />
             </>
           ) : (
-            <>
-              <AppText variant="small" muted>
-                After the ride, you'll enter the meter total here.
-              </AppText>
-              {DEMO ? (
-                <Button title="Skip to after the ride (demo)" variant="link" onPress={() => skipTo(new Date(match.plan.route.at(-1)!.at).getTime() + 60_000)} />
-              ) : null}
-            </>
+            <AppText variant="small" muted>
+              After the ride, you'll enter the meter total here.
+            </AppText>
           )
         ) : null}
+        {DEMO && !rideStarted ? <Button title="Skip to after the ride (demo)" variant="link" onPress={() => finishRide.mutate(match.id, { onError })} loading={finishRide.isPending} /> : null}
       </Card>
 
       <CancelButton trip={trip} onError={onError} warning={`Your ${money(match.plan.you.fee)} match fee won't be refunded, and ${name} will need to find someone else.`} />

@@ -43,6 +43,8 @@ const MAX_TRIPS_PER_DAY = 20;
 const PAIR_COOLDOWN_MS = 24 * 60 * MINUTE;
 // A confirmed ride nobody settled is closed this long after its last drop-off.
 const AUTO_COMPLETE_AFTER_MS = 6 * 60 * MINUTE;
+// How long people have to accept a proposal in the public demo.
+const DEMO_ACCEPT_WINDOW_MIN = 3;
 
 function inServiceArea(p: Place) {
   const a = CONFIG.trips.serviceArea;
@@ -288,7 +290,8 @@ export class RideService {
         box.maxLng,
         trip.target_time,
         trip.flex_min,
-        new Date(now - PAIR_COOLDOWN_MS),
+        // The demo lets two friends try again straight away with new trips.
+        new Date(now - (this.deps.config.DEMO_MODE ? 0 : PAIR_COOLDOWN_MS)),
       ],
     );
     if (!candidates.length) return null;
@@ -299,7 +302,9 @@ export class RideService {
   }
 
   private async propose(tx: Tx, a: TripRow, b: TripRow, plan: SharedPlan, now: number): Promise<MatchRow> {
-    const expiresAt = Math.min(now + CONFIG.acceptWindowMinutes * MINUTE, a.search_until.getTime(), b.search_until.getTime());
+    // The public demo gives three minutes: whoever's on the other end is either there now or has closed the page.
+    const window = (this.deps.config.DEMO_MODE ? DEMO_ACCEPT_WINDOW_MIN : CONFIG.acceptWindowMinutes) * MINUTE;
+    const expiresAt = Math.min(now + window, a.search_until.getTime(), b.search_until.getTime());
     const { rows } = await tx.query<MatchRow>(
       `INSERT INTO matches (trip_a, trip_b, status, plan, booker_trip_id, proposed_at, expires_at)
        VALUES ($1, $2, 'proposed', $3, $4, $5, $6) RETURNING *`,
@@ -404,6 +409,14 @@ export class RideService {
       await tx.query('UPDATE trips SET match_id = NULL WHERE id = $1', [id]);
       if (id === byTripId && reason === 'cancelled') continue;
       if (id !== byTripId) await notify(tx, now, trip.user_id, { kind: 'match_fell_through' }, { tripId: id });
+      // In the public demo, someone who let a proposal lapse has almost certainly left, so they aren't offered to
+      // the next visitor.
+      const accepted = id === match.trip_a ? match.a_accepted_at : match.b_accepted_at;
+      if (reason === 'expired' && !accepted && this.deps.config.DEMO_MODE) {
+        await this.setTrip(tx, id, { status: 'expired', match_id: null }, now);
+        if (trip.payment_id) await enqueue(tx, now, 'payment.cancel', { paymentId: trip.payment_id });
+        continue;
+      }
       await this.reopen(tx, { ...trip, match_id: null }, now);
     }
   }
@@ -704,6 +717,36 @@ export class RideService {
     else await this.setTrip(tx, companion.id, { status: 'cancelled' }, now);
   }
 
+  // The public demo's "Skip to after the ride": moves a confirmed ride into the past, for both riders, so the
+  // fare can be entered straight away.
+  async demoFinishRide(userId: string, matchId: string): Promise<string> {
+    if (!this.deps.config.DEMO_MODE) throw notFound('Not found.');
+    return this.tx(async (tx) => {
+      const now = this.now();
+      const { match, mine, partner } = await this.memberMatch(tx, userId, matchId);
+      if (match.status !== 'confirmed') throw conflict('match_not_confirmed', 'Only a confirmed ride can be finished.');
+      const lastStop = match.plan.route[match.plan.route.length - 1]!;
+      const shift = lastStop.at + MINUTE - now;
+      if (shift <= 0) return mine.id;
+      const plan = {
+        ...match.plan,
+        startAt: match.plan.startAt - shift,
+        route: match.plan.route.map((s) => ({ ...s, at: s.at - shift })),
+        riders: Object.fromEntries(
+          Object.entries(match.plan.riders).map(([id, r]) => [id, { ...r, pickupAt: r.pickupAt - shift, dropoffAt: r.dropoffAt - shift }]),
+        ),
+      };
+      await tx.query('UPDATE matches SET plan = $2 WHERE id = $1', [match.id, plan]);
+      await tx.query(
+        `UPDATE trips SET target_time = target_time - make_interval(secs => $2::double precision / 1000),
+           search_until = search_until - make_interval(secs => $2::double precision / 1000)
+         WHERE id = ANY($1)`,
+        [[mine.id, partner.id], shift],
+      );
+      return mine.id;
+    });
+  }
+
   // ---- clock-driven work ---------------------------------------------------------------------
 
   // Expires stale proposals and trips, closes rides nobody settled, and retries matching for everyone still
@@ -743,6 +786,26 @@ export class RideService {
         }
       }
     });
+
+    // The public demo: anyone still searching after a short wait gets the pretend travel partner, once per trip
+    // (so declining them means waiting for a real person).
+    if (this.deps.config.DEMO_MODE) {
+      const { rows: waiting } = await this.deps.db.query<{ id: string }>(
+        `SELECT t.id FROM trips t JOIN users u ON u.id = t.user_id
+         WHERE t.status = 'searching' AND t.updated_at <= $1 AND NOT u.is_demo
+           AND NOT EXISTS (
+             SELECT 1 FROM matches m JOIN trips o ON o.id IN (m.trip_a, m.trip_b) AND o.id <> t.id JOIN users ou ON ou.id = o.user_id
+             WHERE t.id IN (m.trip_a, m.trip_b) AND ou.is_demo)
+         ORDER BY t.updated_at LIMIT 20`,
+        [new Date(this.now() - this.deps.config.DEMO_PARTNER_AFTER_S * 1000)],
+      );
+      for (const { id } of waiting) {
+        await this.tx(async (tx) => {
+          const fresh = await getTrip(tx, id, { lock: true });
+          if (fresh?.status === 'searching') await this.addReviewCompanion(tx, fresh, this.now());
+        });
+      }
+    }
 
     // Safety net: anything missed when it was posted gets another chance, a few trips per transaction.
     const { rows } = await this.deps.db.query<{ id: string }>("SELECT id FROM trips WHERE status = 'searching' ORDER BY created_at LIMIT 1000");
@@ -787,12 +850,14 @@ export class RideService {
 
     await db.query('UPDATE reports SET details = NULL WHERE details IS NOT NULL AND created_at < $1', [daysAgo(now, RETENTION.reportDetailsDays)]);
 
-    // Accounts nobody has used for two years.
+    // Accounts nobody has used for two years. The public demo keeps them for a day: people try it with their
+    // real number, and nothing there is worth keeping.
+    const idleDays = this.deps.config.DEMO_MODE ? 1 : RETENTION.inactiveAccountDays;
     const { rows: idle } = await db.query<{ id: string }>(
       `SELECT id FROM users u WHERE deleted_at IS NULL AND NOT is_demo AND last_active_at < $1
          AND NOT EXISTS (SELECT 1 FROM trips t WHERE t.user_id = u.id AND t.status = ANY($2))
        LIMIT 100`,
-      [daysAgo(now, RETENTION.inactiveAccountDays), ACTIVE],
+      [daysAgo(now, idleDays), ACTIVE],
     );
     for (const { id } of idle) await this.deleteAccount(id);
 

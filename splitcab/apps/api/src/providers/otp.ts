@@ -1,4 +1,4 @@
-import { timingSafeEqual } from 'node:crypto';
+import { createHmac, timingSafeEqual } from 'node:crypto';
 import type { AppConfig } from '../config';
 import { AppError } from '../errors';
 
@@ -76,6 +76,30 @@ export class DevOtp implements OtpProvider {
   }
 }
 
+// The public demo: the code is derived from the number and the time, so whichever server instance answers can
+// check it, and it's shown on screen instead of being texted. Valid for 10 to 20 minutes.
+export class DemoOtp implements OtpProvider {
+  constructor(private secret: string) {}
+
+  private code(phone: string, window: number) {
+    const hex = createHmac('sha256', this.secret).update(`${phone}:${window}`).digest('hex');
+    return String(parseInt(hex.slice(0, 8), 16) % 1_000_000).padStart(6, '0');
+  }
+
+  private window() {
+    return Math.floor(Date.now() / 600_000);
+  }
+
+  async start(phone: string) {
+    return { devCode: this.code(phone, this.window()) };
+  }
+
+  async check(phone: string, code: string) {
+    const now = this.window();
+    return sameCode(this.code(phone, now), code) || sameCode(this.code(phone, now - 1), code);
+  }
+}
+
 // Lets store reviewers sign in with a fixed number and code, without an SMS.
 export class ReviewAccountOtp implements OtpProvider {
   constructor(
@@ -97,6 +121,8 @@ export function createOtpProvider(config: AppConfig): OtpProvider {
   const base =
     config.OTP_PROVIDER === 'twilio'
       ? new TwilioVerifyOtp(config.TWILIO_ACCOUNT_SID!, config.TWILIO_AUTH_TOKEN!, config.TWILIO_VERIFY_SERVICE_SID!)
-      : new DevOtp();
+      : config.OTP_PROVIDER === 'demo'
+        ? new DemoOtp(config.JWT_SECRET)
+        : new DevOtp();
   return config.REVIEW_PHONE && config.REVIEW_CODE ? new ReviewAccountOtp(base, config.REVIEW_PHONE, config.REVIEW_CODE) : base;
 }

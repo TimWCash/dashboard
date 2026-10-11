@@ -6,7 +6,9 @@
   "description": "A browser-only demo of SplitCab: the real API runs in the page on an in-browser Postgres.",
   "scripts": {
     "build": "node build.mjs",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build:server": "node build.mjs --server",
+    "build:vercel": "node build.mjs --vercel"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.8",

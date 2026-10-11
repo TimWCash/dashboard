@@ -75,6 +75,13 @@ export function rideRoutes(app: FastifyInstance, deps: Deps, rides: RideService)
     return receiptView(deps.db, merchant, req.userId, id);
   });
 
+  if (deps.config.DEMO_MODE) {
+    app.post('/v1/matches/:id/demo-finish', auth, async (req): Promise<TripView> => {
+      const { id } = parse(uuidParam, req.params);
+      return view(req.userId, await rides.demoFinishRide(req.userId, id));
+    });
+  }
+
   app.post('/v1/matches/:id/paid', auth, async (req): Promise<TripView> => {
     const { id } = parse(uuidParam, req.params);
     return view(req.userId, await rides.markPaid(req.userId, id));

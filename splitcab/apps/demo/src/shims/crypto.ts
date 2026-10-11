@@ -1,4 +1,5 @@
-// The few node:crypto functions the API uses, built on Web Crypto and a pure-JS SHA-256.
+// The few node:crypto functions the API uses, built on Web Crypto and pure-JS SHA-256 and HMAC.
+import { hmac } from '@noble/hashes/hmac.js';
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex } from '@noble/hashes/utils.js';
 
@@ -6,6 +7,15 @@ const encoder = new TextEncoder();
 
 export function createHash(algorithm: string) {
   if (algorithm !== 'sha256') throw new Error(`Unsupported hash: ${algorithm}`);
+  return hasher(sha256);
+}
+
+export function createHmac(algorithm: string, key: string) {
+  if (algorithm !== 'sha256') throw new Error(`Unsupported HMAC: ${algorithm}`);
+  return hasher((data) => hmac(sha256, encoder.encode(key), data));
+}
+
+function hasher(digest: (data: Uint8Array) => Uint8Array) {
   let input = new Uint8Array(0);
   const hash = {
     update(data: string | Uint8Array) {
@@ -18,7 +28,7 @@ export function createHash(algorithm: string) {
     },
     digest(encoding: 'hex') {
       if (encoding !== 'hex') throw new Error(`Unsupported digest encoding: ${encoding}`);
-      return bytesToHex(sha256(input));
+      return bytesToHex(digest(input));
     },
   };
   return hash;

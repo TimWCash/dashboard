@@ -13,7 +13,13 @@ const schema = z.object({
 
   DATABASE_URL: z.string().min(1),
   DATABASE_SSL: bool.default(false),
+  // PEM certificate of the database's certificate authority, for providers whose certificates aren't signed by a
+  // public one (Supabase's pooler, for example). Turns on TLS with full verification against it.
+  DATABASE_SSL_CA: z.string().optional(),
   DATABASE_POOL_MAX: z.coerce.number().int().positive().default(10),
+  // Set when DATABASE_URL goes through a transaction-mode pooler (Supabase's port 6543, PgBouncer), which
+  // can't keep per-connection settings. Set the timeouts on the database role instead; see the README.
+  DATABASE_TRANSACTION_POOLER: bool.default(false),
 
   JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters'),
   ACCESS_TOKEN_TTL_MIN: z.coerce.number().int().positive().default(15),
@@ -32,13 +38,18 @@ const schema = z.object({
     .transform((s) => s.split(',').map((c) => c.trim().toUpperCase()).filter(Boolean))
     .refine((list) => list.length > 0 && list.every((c) => isSupportedCountry(c)), 'ALLOWED_PHONE_COUNTRIES must list ISO country codes, e.g. IE,GB'),
 
-  OTP_PROVIDER: z.enum(['twilio', 'dev']).default('dev'),
+  // "demo" codes are derived from the number and shown on screen, so any server instance can check them.
+  OTP_PROVIDER: z.enum(['twilio', 'dev', 'demo']).default('dev'),
   TWILIO_ACCOUNT_SID: z.string().optional(),
   TWILIO_AUTH_TOKEN: z.string().optional(),
   TWILIO_VERIFY_SERVICE_SID: z.string().optional(),
   // A fixed number and code for App Store / Play review accounts. Never set these to a real person's number.
   REVIEW_PHONE: z.string().optional(),
   REVIEW_CODE: z.string().regex(/^\d{6}$/).optional(),
+  // The public demo: sign-in codes on screen, pretend payments, a pretend travel partner for anyone who isn't
+  // matched within DEMO_PARTNER_AFTER_S, and a button to finish a ride early. Never with live Stripe keys.
+  DEMO_MODE: bool.default(false),
+  DEMO_PARTNER_AFTER_S: z.coerce.number().int().min(0).max(3600).default(45),
   // Extra words the chat filter rejects, comma-separated.
   BLOCKED_TERMS: z.string().default(''),
 
@@ -90,12 +101,19 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     }
     else c.REVIEW_PHONE = parsed.number;
   }
-  if (c.NODE_ENV === 'production') {
+  if (c.DEMO_MODE) {
+    if (c.PAYMENTS_PROVIDER !== 'test' || c.STRIPE_SECRET_KEY?.startsWith('sk_live_')) problems.push('DEMO_MODE only runs with PAYMENTS_PROVIDER=test');
+    if (c.OTP_PROVIDER === 'twilio') problems.push('DEMO_MODE shows sign-in codes on screen, so it must not use OTP_PROVIDER=twilio');
+  }
+  if (c.OTP_PROVIDER === 'demo' && !c.DEMO_MODE) problems.push('OTP_PROVIDER=demo needs DEMO_MODE=true');
+  if (c.NODE_ENV === 'production' && !c.DEMO_MODE) {
     // Development stand-ins must never reach real users.
     if (c.OTP_PROVIDER !== 'twilio') problems.push('Production requires OTP_PROVIDER=twilio');
     if (c.PAYMENTS_PROVIDER !== 'stripe') problems.push('Production requires PAYMENTS_PROVIDER=stripe');
     if (c.PUSH_PROVIDER !== 'expo') problems.push('Production requires PUSH_PROVIDER=expo');
     if (c.STRIPE_SECRET_KEY?.startsWith('sk_test_')) problems.push('Production is using a Stripe test key');
+  }
+  if (c.NODE_ENV === 'production') {
     // Guessing wrong either way breaks rate limiting: too few hops and every request shares the load balancer's
     // address; too many and clients can pick their own.
     if (env.TRUST_PROXY_HOPS === undefined) problems.push('Production requires TRUST_PROXY_HOPS (0 if clients connect directly, 1 behind one load balancer)');

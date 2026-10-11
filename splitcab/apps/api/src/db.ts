@@ -8,13 +8,16 @@ export type Db = pg.Pool;
 export type Tx = pg.PoolClient;
 export type Queryable = Pick<pg.Pool, 'query'>;
 
-export function createPool(config: Pick<AppConfig, 'DATABASE_URL' | 'DATABASE_SSL' | 'DATABASE_POOL_MAX'>): Db {
+type PoolConfig = Pick<AppConfig, 'DATABASE_URL' | 'DATABASE_SSL' | 'DATABASE_POOL_MAX'> &
+  Partial<Pick<AppConfig, 'DATABASE_SSL_CA' | 'DATABASE_TRANSACTION_POOLER'>>;
+
+export function createPool(config: PoolConfig): Db {
   return new pg.Pool({
     connectionString: config.DATABASE_URL,
-    ssl: config.DATABASE_SSL ? { rejectUnauthorized: true } : undefined,
+    ssl: config.DATABASE_SSL_CA ? { ca: config.DATABASE_SSL_CA, rejectUnauthorized: true } : config.DATABASE_SSL ? { rejectUnauthorized: true } : undefined,
     max: config.DATABASE_POOL_MAX,
-    statement_timeout: 10_000,
-    idle_in_transaction_session_timeout: 30_000,
+    // A transaction pooler hands each transaction to any server connection, so these come from the role there.
+    ...(config.DATABASE_TRANSACTION_POOLER ? {} : { statement_timeout: 10_000, idle_in_transaction_session_timeout: 30_000 }),
   });
 }
 

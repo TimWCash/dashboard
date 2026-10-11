@@ -13,6 +13,15 @@ export const keys = {
 
 export const isActive = (t: Pick<TripView, 'status'>) => ACTIVE_TRIP_STATUSES.includes(t.status);
 
+// For a day after a shared ride the two riders are still settling up: one waits for the fare, the other for
+// "I've paid". Keep the trip fresh while that's open so neither depends on a push notification.
+const settling = (t: TripView) => {
+  const m = t.match;
+  const end = m?.plan.route.at(-1)?.at;
+  if (t.status !== 'completed' || !m || m.settlement?.paidAt || !end) return false;
+  return Date.now() - Date.parse(end) < 86_400_000;
+};
+
 export function useConfig() {
   return useQuery({ queryKey: keys.config, queryFn: () => api.public.get<AppConfig>('/v1/config'), staleTime: 10 * 60_000 });
 }
@@ -32,7 +41,7 @@ export function useTrip(id: string) {
     queryKey: keys.trip(id),
     queryFn: () => api.get<TripView>(`/v1/trips/${id}`),
     initialData: () => qc.getQueryData<TripView[]>(keys.trips('active'))?.find((t) => t.id === id),
-    refetchInterval: (q) => (q.state.data && isActive(q.state.data) ? 4_000 : false),
+    refetchInterval: (q) => (!q.state.data ? false : isActive(q.state.data) ? 4_000 : settling(q.state.data) ? 10_000 : false),
   });
 }
 
@@ -80,6 +89,8 @@ export const useRate = () =>
   useTripMutation(({ matchId, stars }: { matchId: string; stars: number }) => api.post<TripView>(`/v1/matches/${matchId}/rating`, { stars }));
 export const useBlock = () => useTripMutation((matchId: string) => api.post<TripView>(`/v1/matches/${matchId}/block`));
 export const useMarkPaid = () => useTripMutation((matchId: string) => api.post<TripView>(`/v1/matches/${matchId}/paid`));
+// Public demo only: moves the ride into the past for both riders.
+export const useDemoFinishRide = () => useTripMutation((matchId: string) => api.post<TripView>(`/v1/matches/${matchId}/demo-finish`));
 
 export function useSendMessage(matchId: string) {
   const qc = useQueryClient();

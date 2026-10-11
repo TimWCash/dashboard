@@ -2,8 +2,6 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
   "installCommand": "npm ci",
-  "buildCommand": "npm run demo:build",
-  "outputDirectory": "apps/demo/dist",
-  "ignoreCommand": "git diff --quiet HEAD^ HEAD -- .",
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+  "buildCommand": "npm run demo:build:vercel",
+  "ignoreCommand": "git diff --quiet HEAD^ HEAD -- ."
 }

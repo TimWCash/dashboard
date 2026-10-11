@@ -11,7 +11,9 @@
     "api:dev": "npm run dev -w @splitcab/api",
     "api:migrate": "npm run migrate -w @splitcab/api",
     "mobile": "npm run start -w @splitcab/mobile",
-    "demo:build": "npm run build -w @splitcab/demo"
+    "demo:build": "npm run build -w @splitcab/demo",
+    "demo:build:server": "npm run build:server -w @splitcab/demo",
+    "demo:build:vercel": "npm run build:vercel -w @splitcab/demo"
   },
   "engines": {
     "node": ">=22"

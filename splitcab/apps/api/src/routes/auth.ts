@@ -37,7 +37,8 @@ export function authRoutes(app: FastifyInstance, deps: Deps) {
     if ((await recentCount(phone, 'start')) >= MAX_CODES_PER_HOUR) throw tooMany('Too many codes requested for this number. Try again in an hour.');
     await deps.db.query("INSERT INTO otp_requests (phone, kind, created_at) VALUES ($1, 'start', $2)", [phone, new Date(deps.clock())]);
     const { devCode } = await deps.otp.start(phone);
-    return { phone, ...(devCode && deps.config.NODE_ENV !== 'production' ? { devCode } : {}) };
+    const showCode = deps.config.NODE_ENV !== 'production' || deps.config.DEMO_MODE;
+    return { phone, ...(devCode && showCode ? { devCode } : {}) };
   });
 
   app.post('/v1/auth/otp/verify', strict, async (req): Promise<AuthResponse> => {
