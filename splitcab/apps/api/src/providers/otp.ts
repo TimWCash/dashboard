@@ -4,8 +4,8 @@ import { AppError } from '../errors';
 
 // Compares codes in constant time, so response timing can't reveal how many leading digits were right.
 function sameCode(a: string, b: string) {
-  const x = Buffer.from(a);
-  const y = Buffer.from(b);
+  const x = new TextEncoder().encode(a);
+  const y = new TextEncoder().encode(b);
   return x.length === y.length && timingSafeEqual(x, y);
 }
 

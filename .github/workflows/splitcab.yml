@@ -57,10 +57,14 @@ jobs:
           cache-dependency-path: splitcab/package-lock.json
       - run: npm ci
       - name: Typecheck
-        run: npm run typecheck -w @splitcab/mobile
+        run: npm run typecheck -w @splitcab/mobile -w @splitcab/demo
       - name: Bundle iOS and Android
         working-directory: splitcab/apps/mobile
         run: npx expo export --platform ios --platform android --output-dir dist-check
+        env:
+          CI: 1
+      - name: Build the browser demo
+        run: npm run demo:build
         env:
           CI: 1
 

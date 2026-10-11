@@ -10,7 +10,8 @@
     "test": "npm run test --workspaces --if-present",
     "api:dev": "npm run dev -w @splitcab/api",
     "api:migrate": "npm run migrate -w @splitcab/api",
-    "mobile": "npm run start -w @splitcab/mobile"
+    "mobile": "npm run start -w @splitcab/mobile",
+    "demo:build": "npm run build -w @splitcab/demo"
   },
   "engines": {
     "node": ">=22"

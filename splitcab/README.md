@@ -6,6 +6,7 @@ Two people heading the same way at roughly the same time get matched, take one t
 apps/mobile     Expo (React Native) app for iOS and Android
 apps/api        Fastify + Postgres API: sign-in, matching, payments, chat, safety
 apps/site       Static support site: privacy policy, terms, support, account deletion
+apps/demo       Browser-only demo: the app's web build with the real API running in the page
 packages/core   Shared TypeScript: fare model, matching engine, places, API types
 prototype       The original single-page web demo (not maintained)
 docs            Launch checklist
@@ -45,6 +46,10 @@ TEST_DATABASE_URL=postgres://postgres@127.0.0.1:5432/splitcab_test npm test -w @
 ```
 
 The API tests run against a real Postgres database. They cover sign-in, wrong-code lockouts and token rotation, the full ride lifecycle, holds, captures, releases and refunds (including captures that race a release), 3-D Secure, cancellations before and after pickup, blocking and reporting, chat and name filtering, privacy of the other rider's stops before both accept, posting limits and pair cooldowns, concurrent matching, account deletion and export, the store review account, production config guards, and signed Stripe webhooks. CI (`.github/workflows/splitcab.yml`) runs these plus the mobile typecheck, iOS/Android bundles and the API Docker build.
+
+## Browser demo
+
+`npm run demo:build` builds a static site in `apps/demo/dist` that anyone can try without a server or an account. The API's own route, matching and payment code runs in the page on PGlite (Postgres compiled to WebAssembly), saved in the browser's IndexedDB. Sign-in codes are shown on screen, cards are simulated, and every trip is matched with a pretend traveller. `vercel.json` deploys it to Vercel with the project root set to `splitcab`.
 
 ## Deploying
 

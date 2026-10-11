@@ -4,9 +4,10 @@ WORKDIR /repo
 COPY package.json package-lock.json ./
 COPY packages/core/package.json packages/core/
 COPY apps/api/package.json apps/api/
-# Listed so the lockfile matches the workspace; its dependencies aren't installed.
+# Listed so the lockfile matches the workspaces; their dependencies aren't installed.
 COPY apps/mobile/package.json apps/mobile/
-# Only the API's dependencies; the mobile app isn't needed here.
+COPY apps/demo/package.json apps/demo/
+# Only the API's dependencies; the mobile app and demo aren't needed here.
 RUN npm ci --workspace @splitcab/api --include-workspace-root --ignore-scripts
 COPY packages/core packages/core
 COPY apps/api apps/api

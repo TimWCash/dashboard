@@ -5,6 +5,7 @@ import { KeyboardAvoidingView, Platform } from 'react-native';
 import { AppText, Button, Field, Note, Screen } from '../../components/ui';
 import { api, ApiError } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
+import { DEMO } from '../../lib/demo';
 import { formatPhone } from '../../lib/format';
 import { pendingSignIn } from '../../lib/pendingSignIn';
 
@@ -88,7 +89,7 @@ export default function Code() {
           testID="code-input"
           style={{ letterSpacing: 6, fontSize: 22 }}
         />
-        {devCode ? <Note>{`Development server: your code is ${devCode}.`}</Note> : null}
+        {devCode ? <Note>{`${DEMO ? 'Demo' : 'Development server'}: no text is sent. Your code is ${devCode}.`}</Note> : null}
       </Screen>
     </KeyboardAvoidingView>
   );

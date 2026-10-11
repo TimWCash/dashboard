@@ -1,0 +1,19 @@
+{
+  "name": "@splitcab/demo",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "A browser-only demo of SplitCab: the real API runs in the page on an in-browser Postgres.",
+  "scripts": {
+    "build": "node build.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "^0.5.8",
+    "@noble/hashes": "^2.4.0",
+    "@splitcab/core": "*"
+  },
+  "devDependencies": {
+    "esbuild": "^0.27.7"
+  }
+}
