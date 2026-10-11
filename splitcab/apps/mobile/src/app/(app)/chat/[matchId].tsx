@@ -64,7 +64,8 @@ export default function Chat() {
           ))}
           {send.error ? <Note tone="bad">{send.error instanceof ApiError ? send.error.message : "Couldn't send that message."}</Note> : null}
         </ScrollView>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.quick} keyboardShouldPersistTaps="handled">
+        {/* flexGrow 0, or the row takes half the screen from the messages on the web. */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={styles.quick} keyboardShouldPersistTaps="handled">
           {quickReplies.map((q) => (
             <Pressable key={q} accessibilityRole="button" accessibilityLabel={`Send: ${q}`} onPress={() => submit(q)} style={[styles.chip, { borderColor: c.line, backgroundColor: c.surface }]}>
               <AppText variant="small">{q}</AppText>
