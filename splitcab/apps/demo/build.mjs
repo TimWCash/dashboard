@@ -72,7 +72,8 @@ if (server) {
   });
   await writeFile(
     path.join(fn, '.vc-config.json'),
-    JSON.stringify({ runtime: 'nodejs22.x', handler: 'index.mjs', launcherType: 'Nodejs', shouldAddHelpers: false, maxDuration: 30 }, null, 2),
+    // Dublin, next to the database: each request makes several queries.
+    JSON.stringify({ runtime: 'nodejs22.x', handler: 'index.mjs', launcherType: 'Nodejs', shouldAddHelpers: false, maxDuration: 30, regions: ['dub1'] }, null, 2),
   );
   console.log(`Demo (shared server) built in ${path.relative(process.cwd(), out)}`);
 } else {
