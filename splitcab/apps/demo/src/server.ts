@@ -24,6 +24,35 @@ import { DemoApp, type Logger } from './router';
 
 export const DEMO_API_URL = 'https://api.splitcab.demo';
 
+// Visitors can jump ahead to after the ride instead of waiting for it. The page's clock moves forward for the
+// app and the API alike, and stays moved after a reload.
+const CLOCK_KEY = 'splitcab-demo-clock-offset';
+const RealDate = Date;
+let clockOffset = 0;
+try {
+  clockOffset = Number(localStorage.getItem(CLOCK_KEY)) || 0;
+} catch {}
+if (clockOffset) {
+  const ShiftedDate = function (this: unknown, ...args: unknown[]) {
+    if (!new.target) return new RealDate(RealDate.now() + clockOffset).toString();
+    return args.length ? new (RealDate as unknown as new (...a: unknown[]) => Date)(...args) : new RealDate(RealDate.now() + clockOffset);
+  } as unknown as DateConstructor;
+  Object.setPrototypeOf(ShiftedDate, RealDate);
+  Object.defineProperty(ShiftedDate, 'prototype', { value: RealDate.prototype });
+  ShiftedDate.now = () => RealDate.now() + clockOffset;
+  globalThis.Date = ShiftedDate;
+}
+Object.assign(globalThis, {
+  splitcabDemo: {
+    skipTo(time: number) {
+      try {
+        localStorage.setItem(CLOCK_KEY, String(Math.max(clockOffset, clockOffset + time - Date.now())));
+      } catch {}
+      location.reload();
+    },
+  },
+});
+
 const log: Logger = {
   level: 'warn',
   fatal: console.error,

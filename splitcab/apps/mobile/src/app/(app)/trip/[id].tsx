@@ -8,6 +8,7 @@ import { BookingLine, Countdown, MatchFacts, PartnerRow, PriceBreakdown, Pulse, 
 import { AppText, Button, Card, Divider, Field, Icon, Note, Row, Screen } from '../../../components/ui';
 import { ApiError } from '../../../lib/api';
 import { useAuth } from '../../../lib/auth';
+import { DEMO, skipTo } from '../../../lib/demo';
 import { bookingOptions } from '../../../lib/booking';
 import { confirmDestructive } from '../../../lib/confirm';
 import { clock, money, parseEuro } from '../../../lib/format';
@@ -336,9 +337,14 @@ function Confirmed({ trip, match, onError }: Section & { match: MatchView }) {
               <Button title="Split the fare" onPress={settle} loading={complete.isPending} disabled={!fare} />
             </>
           ) : (
-            <AppText variant="small" muted>
-              After the ride, you'll enter the meter total here.
-            </AppText>
+            <>
+              <AppText variant="small" muted>
+                After the ride, you'll enter the meter total here.
+              </AppText>
+              {DEMO ? (
+                <Button title="Skip to after the ride (demo)" variant="link" onPress={() => skipTo(new Date(match.plan.route.at(-1)!.at).getTime() + 60_000)} />
+              ) : null}
+            </>
           )
         ) : null}
       </Card>
