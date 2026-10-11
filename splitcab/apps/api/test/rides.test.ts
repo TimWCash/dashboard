@@ -206,6 +206,40 @@ describe('the ride lifecycle', () => {
     expect((await h.call('GET', '/v1/trips?scope=past', { token: booker.token })).json[0].match.settlement.paidAt).not.toBeNull();
   });
 
+  test('when the fare is split, both riders get a receipt for their side', async () => {
+    const ana = await rider(h, 'Ana');
+    const ben = await rider(h, 'Ben');
+    const eve = await rider(h, 'Eve');
+    const a = await post(h, ana, trip('stephens-green', 'dub'));
+    const b = await post(h, ben, trip('trinity', 'dub'));
+    const matchId = b.match!.id;
+    expect((await h.call('GET', `/v1/trips/${a.id}/receipt`, { token: ana.token })).json.error.code).toBe('no_receipt');
+    await h.call('POST', `/v1/matches/${matchId}/respond`, { token: ana.token, body: { accept: true } });
+    await h.call('POST', `/v1/matches/${matchId}/respond`, { token: ben.token, body: { accept: true } });
+    await h.runJobs();
+    const anaBooks = (await get(h, ana, a.id)).match!.youBook;
+    const [booker, other, bookerTrip, otherTrip] = anaBooks ? [ana, ben, a.id, b.id] : [ben, ana, b.id, a.id];
+    await h.call('POST', `/v1/matches/${matchId}/complete`, { token: booker.token, body: { actualFare: 3000 } });
+    await h.runJobs();
+
+    const mine = (await h.call('GET', `/v1/trips/${bookerTrip}/receipt`, { token: booker.token })).json;
+    const theirs = (await h.call('GET', `/v1/trips/${otherTrip}/receipt`, { token: other.token })).json;
+    expect(mine.fare.meterTotal).toBe(3000);
+    expect(mine.fare.yourShare + mine.fare.partnerShare).toBe(3000);
+    expect(theirs.fare.yourShare).toBe(mine.fare.partnerShare);
+    expect(mine.ride.youBooked).toBe(true);
+    expect(theirs.settleUp.youOwe).toBe(mine.settleUp.owedToYou);
+    expect(mine.matchFee).toEqual({ amount: CONFIG.matchFee, status: 'captured' });
+    expect(mine.number).toMatch(/^SC-[0-9A-F]{8}$/);
+    expect(mine.merchant.name).toBe('SplitCab');
+    // Only your own receipt.
+    expect((await h.call('GET', `/v1/trips/${bookerTrip}/receipt`, { token: eve.token })).status).toBe(404);
+
+    const titles = (name: string) => h.push.sent.filter((m) => m.to === `ExponentPushToken[${name}]`).map((m) => [m.title, m.body]);
+    expect(titles(anaBooks ? 'Ana' : 'Ben')).toContainEqual(['Your receipt', expect.stringMatching(/owes you €/)]);
+    expect(titles(anaBooks ? 'Ben' : 'Ana')).toContainEqual(['Fare split', expect.stringMatching(/Your receipt is in the app/)]);
+  });
+
   test('declining sends both back to searching and they are never re-paired', async () => {
     const ana = await rider(h, 'Ana');
     const ben = await rider(h, 'Ben');

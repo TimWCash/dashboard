@@ -550,8 +550,10 @@ export class RideService {
         await this.setTrip(tx, t.id, { status: 'completed' }, now);
         await tx.query('UPDATE users SET rides_completed = rides_completed + 1 WHERE id = $1', [t.user_id]);
       }
-      const names = await this.firstNames(tx, [mine.user_id]);
+      // Both riders get their receipt.
+      const names = await this.firstNames(tx, [mine.user_id, partner.user_id]);
       await notify(tx, now, partner.user_id, { kind: 'settled', partner: names.get(mine.user_id)!, youOwe: partnerOwes }, { tripId: partner.id });
+      await notify(tx, now, mine.user_id, { kind: 'receipt', partner: names.get(partner.user_id)!, owedToYou: partnerOwes }, { tripId: mine.id });
       return mine.id;
     });
   }

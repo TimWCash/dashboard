@@ -51,6 +51,7 @@ export function listenForNotifications(onAnyNotification: () => void) {
     const tripId = typeof data?.tripId === 'string' ? data.tripId : null;
     const matchId = typeof data?.matchId === 'string' ? data.matchId : null;
     if (data?.kind === 'new_message' && matchId && tripId) router.push({ pathname: '/chat/[matchId]', params: { matchId, tripId } });
+    else if (data?.kind === 'receipt' && tripId) router.push({ pathname: '/receipt/[tripId]', params: { tripId } });
     else if (tripId) router.push({ pathname: '/trip/[id]', params: { id: tripId } });
   };
 

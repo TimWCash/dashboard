@@ -12,7 +12,7 @@ HOW IT WORKS
 • Tell us where you're going and roughly when you want to leave or arrive.
 • We find someone nearby going your way and show exactly what you'll each pay before you agree.
 • You both accept, agree where to meet in the chat, and one of you books the taxi in your usual taxi app or takes one from a rank.
-• After the ride, the person who booked enters the fare and SplitCab shows who owes what. Pay them back in one tap with Revolut (a card works too), by scanning their QR code, or in cash.
+• After the ride, the person who booked enters the fare and SplitCab shows who owes what. Pay them back in one tap with Revolut (a card works too), by scanning their QR code, or in cash. You both get a receipt.
 
 NO MATCH, NO CHARGE
 When you post a trip we place a €1.99 hold on your card. It's only charged if you're matched and you both accept. If no one is found, the hold is released automatically.

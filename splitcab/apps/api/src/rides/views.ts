@@ -1,7 +1,7 @@
-import { haversineKm, PLACES, type LatLng, type MatchView, type MeView, type PaymentView, type RouteStop, type TripView } from '@splitcab/core';
+import { CONFIG, haversineKm, PLACES, type LatLng, type MatchView, type MeView, type PaymentView, type ReceiptView, type RouteStop, type TripView } from '@splitcab/core';
 import type { Queryable } from '../db';
-import { notFound } from '../errors';
-import { acceptedAt, getMatch, getPayment, partnerTripId, type MatchRow, type TripRow, type UserRow } from './rows';
+import { conflict, notFound } from '../errors';
+import { acceptedAt, getMatch, getOwnTrip, getPayment, partnerTripId, type MatchRow, type TripRow, type UserRow } from './rows';
 
 const iso = (d: Date | number) => new Date(d).toISOString();
 const isoOrNull = (d: Date | null) => (d ? d.toISOString() : null);
@@ -220,4 +220,41 @@ export async function listPaymentViews(q: Queryable, userId: string): Promise<Pa
     trip: { from: r.origin_label, to: r.dest_label, time: iso(r.target_time) },
     history: r.history.map((h) => ({ status: h.status, at: iso(new Date(h.at)) })),
   }));
+}
+
+// Each rider's receipt for a finished shared ride: the fare, both shares, the match fee and who owes whom.
+export async function receiptView(q: Queryable, merchant: ReceiptView['merchant'], userId: string, tripId: string): Promise<ReceiptView> {
+  const trip = await getOwnTrip(q, userId, tripId);
+  const match = await latestMatch(q, trip.id, trip.match_id);
+  if (!match || match.status !== 'completed' || trip.status !== 'completed') {
+    throw conflict('no_receipt', 'Your receipt is ready once the ride is over.');
+  }
+  const me = match.plan.riders[trip.id]!;
+  const otherId = partnerTripId(match, trip.id);
+  const partnerPlan = match.plan.riders[otherId]!;
+  const { rows } = await q.query<{ first_name: string | null; deleted_at: Date | null }>(
+    'SELECT u.first_name, u.deleted_at FROM trips t JOIN users u ON u.id = t.user_id WHERE t.id = $1',
+    [otherId],
+  );
+  const partner = rows[0]?.deleted_at ? 'Former member' : (rows[0]?.first_name ?? 'Traveller');
+  const s = match.settlement;
+  const youBooked = match.booker_trip_id === trip.id;
+  const yourShare = s ? (youBooked ? s.bookerShare : s.partnerOwes) : me.share;
+  const partnerShare = s ? (youBooked ? s.partnerOwes : s.bookerShare) : partnerPlan.share;
+  const payment = trip.payment_id ? await getPayment(q, trip.payment_id) : null;
+  const feeCharged = payment?.status === 'captured' ? payment.amount : 0;
+  return {
+    number: `SC-${trip.id.slice(0, 8).toUpperCase()}`,
+    issuedAt: iso(s?.at ?? match.ended_at ?? match.plan.startAt),
+    currency: CONFIG.currency,
+    merchant,
+    ride: { from: trip.origin_label, to: trip.dest_label, pickupAt: iso(me.pickupAt), dropoffAt: iso(me.dropoffAt), partner, youBooked },
+    fare: { meterTotal: s?.actualFare ?? null, yourShare, partnerShare, soloEstimate: me.soloFare, savings: Math.max(0, me.soloFare - yourShare - feeCharged) },
+    matchFee: payment ? { amount: payment.amount, status: payment.status } : null,
+    settleUp: {
+      youOwe: s && !youBooked ? s.partnerOwes : 0,
+      owedToYou: s && youBooked ? s.partnerOwes : 0,
+      paidAt: s?.paidAt ? iso(s.paidAt) : null,
+    },
+  };
 }

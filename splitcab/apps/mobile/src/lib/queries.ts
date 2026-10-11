@@ -1,4 +1,4 @@
-import { ACTIVE_TRIP_STATUSES, type AppConfig, type MessageView, type PaymentView, type TripInput, type TripView } from '@splitcab/core';
+import { ACTIVE_TRIP_STATUSES, type AppConfig, type MessageView, type PaymentView, type ReceiptView, type TripInput, type TripView } from '@splitcab/core';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from './api';
 
@@ -8,6 +8,7 @@ export const keys = {
   trip: (id: string) => ['trip', id] as const,
   payments: ['payments'] as const,
   messages: (matchId: string) => ['messages', matchId] as const,
+  receipt: (tripId: string) => ['receipt', tripId] as const,
 };
 
 export const isActive = (t: Pick<TripView, 'status'>) => ACTIVE_TRIP_STATUSES.includes(t.status);
@@ -35,6 +36,10 @@ export function useTrip(id: string) {
   });
 }
 
+export function useReceipt(tripId: string) {
+  return useQuery({ queryKey: keys.receipt(tripId), queryFn: () => api.get<ReceiptView>(`/v1/trips/${tripId}/receipt`) });
+}
+
 export function usePayments() {
   return useQuery({ queryKey: keys.payments, queryFn: () => api.get<PaymentView[]>('/v1/payments') });
 }
@@ -55,6 +60,7 @@ export function useStoreTrip() {
     qc.setQueryData(keys.trip(trip.id), trip);
     qc.invalidateQueries({ queryKey: ['trips'] });
     qc.invalidateQueries({ queryKey: keys.payments });
+    qc.invalidateQueries({ queryKey: keys.receipt(trip.id) });
   };
 }
 

@@ -1,10 +1,10 @@
-import { REPORT_REASONS, type MessageView, type TripView } from '@splitcab/core';
+import { REPORT_REASONS, type MessageView, type ReceiptView, type TripView } from '@splitcab/core';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import type { Deps } from '../deps';
 import { authenticate, parse, placeSchema, uuidParam } from '../http';
 import type { RideService } from '../rides/service';
-import { listTripViews, tripViewById } from '../rides/views';
+import { listTripViews, receiptView, tripViewById } from '../rides/views';
 
 const tripInput = z.object({
   origin: placeSchema,
@@ -67,6 +67,12 @@ export function rideRoutes(app: FastifyInstance, deps: Deps, rides: RideService)
     const { id } = parse(uuidParam, req.params);
     const { actualFare } = parse(z.object({ actualFare: z.number().int() }), req.body);
     return view(req.userId, await rides.complete(req.userId, id, actualFare));
+  });
+
+  app.get('/v1/trips/:id/receipt', auth, async (req): Promise<ReceiptView> => {
+    const { id } = parse(uuidParam, req.params);
+    const merchant = { name: deps.config.MERCHANT_DISPLAY_NAME, details: deps.config.RECEIPT_COMPANY_DETAILS ?? null };
+    return receiptView(deps.db, merchant, req.userId, id);
   });
 
   app.post('/v1/matches/:id/paid', auth, async (req): Promise<TripView> => {

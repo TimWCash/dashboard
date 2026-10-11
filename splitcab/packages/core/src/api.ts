@@ -152,6 +152,19 @@ export interface SettlementView {
   bookerRevtag: string | null;
 }
 
+// A rider's receipt for a shared ride. Each rider gets their own, showing their side of the split.
+export interface ReceiptView {
+  number: string;
+  issuedAt: ISODate;
+  currency: string;
+  merchant: { name: string; details: string | null };
+  ride: { from: string; to: string; pickupAt: ISODate; dropoffAt: ISODate; partner: string; youBooked: boolean };
+  // meterTotal is null when nobody entered the fare; the shares are then the estimates you both accepted.
+  fare: { meterTotal: number | null; yourShare: number; partnerShare: number; soloEstimate: number; savings: number };
+  matchFee: { amount: number; status: PaymentStatus } | null;
+  settleUp: { youOwe: number; owedToYou: number; paidAt: ISODate | null };
+}
+
 export interface MatchView {
   id: string;
   status: MatchStatus;

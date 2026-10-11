@@ -8,7 +8,7 @@ Everything the code can't do for you, in roughly the order to do it. Items marke
 - [ ] **Decision:** final product name. Search the EUIPO and Irish trademark registers and both app stores for "SplitCab" before spending on branding.
 - [ ] Solicitor review of `apps/site/privacy.html` and `apps/site/terms.html`; fill in every highlighted placeholder.
 - [ ] Ask the NTA (or a solicitor) to confirm the model: one hirer, one meter, passengers sharing with the hirer's consent and settling between themselves. Avoid anything resembling separate fares per passenger, which is a regulated "shared hire".
-- [ ] **Decision:** VAT. The €1.99 match fee is a service sold in Ireland; ask your accountant whether it includes VAT and register when required.
+- [ ] **Decision:** VAT. The €1.99 match fee is a service sold in Ireland; ask your accountant whether it includes VAT and register when required. Put the company's legal name, address and VAT number in `RECEIPT_COMPANY_DETAILS` so they're printed on riders' receipts.
 - [ ] Public liability insurance for a platform introducing strangers.
 - [ ] GDPR: record of processing activities, and a data protection impact assessment (location data plus introducing strangers makes one advisable). Sign data processing agreements with Stripe, Twilio, Expo, Google and your host.
 

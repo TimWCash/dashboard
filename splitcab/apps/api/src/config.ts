@@ -47,6 +47,8 @@ const schema = z.object({
   STRIPE_PUBLISHABLE_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
   MERCHANT_DISPLAY_NAME: z.string().default('SplitCab'),
+  // Printed on receipts: legal name, address and VAT number, e.g. "SplitCab Ltd, 1 Main St, Dublin 2. VAT IE1234567X".
+  RECEIPT_COMPANY_DETAILS: z.string().max(300).optional(),
 
   PLACES_PROVIDER: z.enum(['google', 'builtin']).default('builtin'),
   GOOGLE_MAPS_API_KEY: z.string().optional(),

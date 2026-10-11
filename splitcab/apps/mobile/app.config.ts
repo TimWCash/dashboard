@@ -40,6 +40,7 @@ const config: ExpoConfig = {
     'expo-router',
     'expo-secure-store',
     'expo-web-browser',
+    'expo-sharing',
     'expo-font',
     '@react-native-community/datetimepicker',
     ['expo-splash-screen', { image: './assets/splash-icon.png', imageWidth: 160, backgroundColor: '#FFC629' }],

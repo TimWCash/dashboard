@@ -483,6 +483,7 @@ function Completed({ trip, match, onError }: Section & { match: MatchView }) {
           <Button title="Report a problem" variant="link" onPress={() => router.push({ pathname: '/report/[matchId]', params: { matchId: match.id, name } })} />
         ) : null}
       </Card>
+      <Button title="View receipt" variant="ghost" icon="receipt-outline" onPress={() => router.push({ pathname: '/receipt/[tripId]', params: { tripId: trip.id } })} />
       <Button title={`Message ${name}`} variant="ghost" icon="chatbubble-ellipses-outline" onPress={() => router.push(chatPath(match, trip))} />
     </>
   );
