@@ -47,7 +47,8 @@ export async function buildApp(opts: BuildOptions): Promise<Built> {
             redact: ['req.headers.authorization', 'req.headers.cookie', 'req.headers["stripe-signature"]'],
             ...(config.NODE_ENV === 'development' ? { transport: { target: 'pino-pretty' } } : {}),
           },
-    trustProxy: config.TRUST_PROXY,
+    // Trust exactly TRUST_PROXY_HOPS proxies, counted from the API inwards.
+    trustProxy: config.TRUST_PROXY_HOPS > 0 ? (_address: string, hop: number) => hop < config.TRUST_PROXY_HOPS : false,
     bodyLimit: 64 * 1024,
   });
 
@@ -74,7 +75,7 @@ export async function buildApp(opts: BuildOptions): Promise<Built> {
     await app.register(rateLimit, {
       max: 300,
       timeWindow: '1 minute',
-      keyGenerator: (req) => req.headers.authorization?.slice(-24) ?? req.ip,
+      keyGenerator: (req) => req.ip,
     });
   }
 

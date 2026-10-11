@@ -191,17 +191,19 @@ describe('store review account', () => {
     expect(done.json.status).toBe('completed');
   });
 
-  test('demo travellers never match real people', async () => {
+  test('the review account and demo travellers never match real people', async () => {
     const rh = await harness(db, { env });
     const token = await reviewer(rh);
     const posted = await rh.call('POST', '/v1/trips', { token, body: trip('stephens-green', 'dub') });
     await rh.call('POST', `/v1/matches/${posted.json.match.id}/respond`, { token, body: { accept: false } });
     const { rows } = await db.query("SELECT t.status FROM trips t JOIN users u ON u.id = t.user_id WHERE u.is_demo");
     expect(rows.map((r) => r.status)).toEqual(['cancelled']);
-    // A real traveller going the same way is matched with the reviewer, never the demo partner.
+    // A real traveller going the same way is never matched with the reviewer or the demo partner.
     const real = await rider(rh, 'Ana');
     const t = await post(rh, real, trip('trinity', 'dub'));
-    expect(t.status === 'searching' || t.match?.partner.firstName === 'Reviewer').toBe(true);
+    expect(t.status).toBe('searching');
+    await rh.rides.sweep();
+    expect((await rh.call('GET', `/v1/trips/${t.id}`, { token: real.token })).json.status).toBe('searching');
   });
 
   test('the review account is routed to test payments even when Stripe is live', async () => {

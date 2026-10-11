@@ -1,3 +1,5 @@
+> **Archived prototype.** This single-page demo started SplitCab. The production app lives in `apps/` and `packages/` (see the [main README](../README.md)); this folder isn't maintained.
+
 # SplitCab (working name)
 
 Two people heading the same way at roughly the same time get matched, take one taxi, and split the fare. SplitCab never drives anyone. It sits outside the taxi apps: one rider books through FREENOW, Uber or Bolt (in Ireland all three dispatch licensed taxis), or takes one from a rank. SplitCab handles the matching and the split.

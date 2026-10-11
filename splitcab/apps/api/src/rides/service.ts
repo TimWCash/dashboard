@@ -238,7 +238,9 @@ export class RideService {
   // Looks for the best partner for a searching trip and proposes the match. Caller holds the matching lock.
   private async tryMatch(tx: Tx, trip: TripRow, now: number): Promise<MatchRow | null> {
     if (trip.status !== 'searching') return null;
+    // Demo travellers and the store review account only ever match each other.
     if (await this.isDemo(tx, trip.user_id)) return null;
+    if (await this.isReviewer(tx, trip.user_id)) return null;
     const box = boxAround({ lat: trip.origin_lat, lng: trip.origin_lng }, CONFIG.matching.maxPickupGapKm / CONFIG.geo.circuity);
     // Coarse prefilters only; the matching engine makes the real decision.
     const { rows: candidates } = await tx.query<TripRow>(
@@ -247,7 +249,7 @@ export class RideService {
          AND t.seats + $4 <= $5
          AND t.origin_lat BETWEEN $6 AND $7 AND t.origin_lng BETWEEN $8 AND $9
          AND abs(extract(epoch FROM t.target_time - $10::timestamptz)) <= (t.flex_min + $11) * 60 + 4 * 3600
-         AND NOT EXISTS (SELECT 1 FROM users du WHERE du.id = t.user_id AND du.is_demo)
+         AND NOT EXISTS (SELECT 1 FROM users du WHERE du.id = t.user_id AND (du.is_demo OR du.phone = $12))
          AND NOT EXISTS (SELECT 1 FROM trip_exclusions e WHERE e.trip_id = $1 AND e.other_trip_id = t.id)
          AND NOT EXISTS (SELECT 1 FROM blocks b WHERE (b.blocker_id = $2 AND b.blocked_id = t.user_id)
                                                 OR (b.blocker_id = t.user_id AND b.blocked_id = $2))
@@ -265,6 +267,7 @@ export class RideService {
         box.maxLng,
         trip.target_time,
         trip.flex_min,
+        this.deps.config.REVIEW_PHONE ?? '',
       ],
     );
     if (!candidates.length) return null;

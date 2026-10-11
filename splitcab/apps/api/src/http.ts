@@ -17,7 +17,11 @@ export function authenticate(deps: Deps) {
   return async (req: FastifyRequest) => {
     const header = req.headers.authorization;
     if (!header?.startsWith('Bearer ')) throw unauthorized();
-    req.userId = await deps.tokens.verifyAccess(header.slice(7));
+    const userId = await deps.tokens.verifyAccess(header.slice(7));
+    // Access tokens live for minutes, but a deleted account must lose access immediately.
+    const { rowCount } = await deps.db.query('SELECT 1 FROM users WHERE id = $1 AND deleted_at IS NULL', [userId]);
+    if (!rowCount) throw unauthorized();
+    req.userId = userId;
   };
 }
 

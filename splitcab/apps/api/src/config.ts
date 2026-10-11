@@ -22,7 +22,9 @@ const schema = z.object({
   // Run the background job worker and sweeper in this process. Turn off to run them in a separate process.
   RUN_WORKER: bool.default(true),
   CORS_ORIGINS: z.string().default(''),
-  TRUST_PROXY: bool.default(true),
+  // How many proxies sit in front of the API (1 behind a typical PaaS load balancer). Client IPs for rate limiting
+  // come from X-Forwarded-For only through that many hops, so clients can't spoof their address.
+  TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(5).default(0),
 
   OTP_PROVIDER: z.enum(['twilio', 'dev']).default('dev'),
   TWILIO_ACCOUNT_SID: z.string().optional(),
