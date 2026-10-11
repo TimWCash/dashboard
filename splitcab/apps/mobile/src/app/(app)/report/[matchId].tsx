@@ -1,7 +1,7 @@
 import { REPORT_REASONS, type ReportReason } from '@splitcab/core';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, Switch, View } from 'react-native';
+import { Linking, Pressable, Switch, View } from 'react-native';
 import { AppText, Button, Field, Icon, Note, Row, Screen } from '../../../components/ui';
 import { api, ApiError } from '../../../lib/api';
 import { useBlock } from '../../../lib/queries';
@@ -17,7 +17,8 @@ const LABELS: Record<ReportReason, string> = {
 
 export default function Report() {
   const { c } = useTheme();
-  const { matchId } = useLocalSearchParams<{ matchId: string }>();
+  const { matchId, name: nameParam } = useLocalSearchParams<{ matchId: string; name?: string }>();
+  const name = nameParam ?? 'this person';
   const block = useBlock();
   const [reason, setReason] = useState<ReportReason | null>(null);
   const [details, setDetails] = useState('');
@@ -25,7 +26,12 @@ export default function Report() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function submit() {
+  const fail = (e: unknown) => {
+    setError(e instanceof ApiError ? e.message : 'Something went wrong. Please try again.');
+    setBusy(false);
+  };
+
+  async function sendReport() {
     if (!reason) return;
     setBusy(true);
     setError(null);
@@ -34,8 +40,18 @@ export default function Report() {
       if (alsoBlock) await block.mutateAsync(matchId);
       router.back();
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Something went wrong. Please try again.');
-      setBusy(false);
+      fail(e);
+    }
+  }
+
+  async function blockOnly() {
+    setBusy(true);
+    setError(null);
+    try {
+      await block.mutateAsync(matchId);
+      router.back();
+    } catch (e) {
+      fail(e);
     }
   }
 
@@ -43,17 +59,30 @@ export default function Report() {
     <Screen
       footer={
         <>
-          <Button title={reason ? 'Send report' : 'Block without reporting'} onPress={reason ? submit : () => block.mutate(matchId, { onSuccess: () => router.back(), onError: (e) => setError(e.message) })} loading={busy || block.isPending} />
+          {error ? <Note tone="bad">{error}</Note> : null}
+          <Button title="Send report" onPress={sendReport} loading={busy && !!reason} disabled={!reason || busy} />
+          <Button title={`Block ${name} without reporting`} variant="link" onPress={blockOnly} disabled={busy} />
         </>
       }
     >
-      <Note tone="bad" icon="call-outline">
-        If you're in danger, call 112 or 999 now.
-      </Note>
-      <AppText variant="body" muted>
-        Reports go to our safety team. Blocking ends any ride you have planned with this person, refunds both match fees, and stops you being matched again.
+      <Stack.Screen
+        options={{
+          title: 'Safety',
+          headerLeft: () => (
+            <Pressable accessibilityRole="button" onPress={() => router.back()} hitSlop={8} style={{ minHeight: 44, justifyContent: 'center', paddingRight: space.lg }}>
+              <AppText variant="body" style={{ fontWeight: '600' }}>
+                Close
+              </AppText>
+            </Pressable>
+          ),
+        }}
+      />
+      <Button title="In danger? Call 112" variant="danger" icon="call" onPress={() => Linking.openURL('tel:112').catch(() => {})} />
+      <AppText variant="heading">Tell us what happened</AppText>
+      <AppText variant="small" muted>
+        Our safety team reviews every report.
       </AppText>
-      <View style={{ gap: space.sm }}>
+      <View style={{ gap: space.sm }} accessibilityRole="radiogroup">
         {REPORT_REASONS.map((r) => {
           const on = reason === r;
           return (
@@ -62,7 +91,7 @@ export default function Report() {
               accessibilityRole="radio"
               accessibilityState={{ selected: on }}
               onPress={() => setReason(on ? null : r)}
-              style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.md, borderRadius: radius.md, borderWidth: 1, borderColor: on ? c.ink : c.line, backgroundColor: c.surface }}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.md, minHeight: 52, borderRadius: radius.md, borderWidth: 1, borderColor: on ? c.ink : c.line, backgroundColor: c.surface }}
             >
               <Icon name={on ? 'radio-button-on' : 'radio-button-off'} color={on ? c.ink : c.muted} />
               <AppText variant="body">{LABELS[r]}</AppText>
@@ -70,12 +99,32 @@ export default function Report() {
           );
         })}
       </View>
-      {reason ? <Field label="What happened? (optional)" value={details} onChangeText={setDetails} multiline maxLength={1000} style={{ minHeight: 100, paddingTop: space.md, textAlignVertical: 'top' }} /> : null}
-      <Row style={{ justifyContent: 'space-between' }}>
-        <AppText variant="body">Also block this person</AppText>
-        <Switch value={alsoBlock} onValueChange={setAlsoBlock} accessibilityLabel="Also block this person" />
-      </Row>
-      {error ? <Note tone="bad">{error}</Note> : null}
+      {reason ? (
+        <Field
+          label="What happened? (optional)"
+          value={details}
+          onChangeText={setDetails}
+          multiline
+          maxLength={1000}
+          style={{ minHeight: 100, paddingTop: space.md, textAlignVertical: 'top' }}
+        />
+      ) : null}
+      <View style={{ gap: space.xs }}>
+        <Row style={{ justifyContent: 'space-between' }}>
+          <AppText variant="body">{`Also block ${name}`}</AppText>
+          <Switch
+            value={alsoBlock}
+            onValueChange={setAlsoBlock}
+            accessibilityLabel={`Also block ${name}`}
+            trackColor={{ false: c.line, true: c.ink }}
+            thumbColor={c.surface}
+            ios_backgroundColor={c.line}
+          />
+        </Row>
+        <AppText variant="small" muted>
+          Cancels any trip with them, refunds both match fees, and you won't be matched again.
+        </AppText>
+      </View>
     </Screen>
   );
 }

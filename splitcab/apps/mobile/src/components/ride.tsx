@@ -1,14 +1,14 @@
 import type { MatchView, TripView } from '@splitcab/core';
-import { Link } from 'expo-router';
+import { Link, router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Pressable, StyleSheet, View } from 'react-native';
 import { clock, countdown, money, pct, tripTimeLine } from '../lib/format';
 import { radius, space, useTheme } from '../lib/theme';
-import { AppText, Avatar, Card, Icon, Pill, Row, type Tone } from './ui';
+import { AppText, Avatar, Card, Icon, Note, Pill, Row, type Tone } from './ui';
 
 export const STATUS: Record<TripView['status'], { label: string; tone: Tone }> = {
   pending_payment: { label: 'Confirm card', tone: 'warn' },
-  searching: { label: 'Searching', tone: 'warn' },
+  searching: { label: 'Searching', tone: 'neutral' },
   proposed: { label: 'Match found', tone: 'accent' },
   confirmed: { label: 'Confirmed', tone: 'ink' },
   completed: { label: 'Done', tone: 'good' },
@@ -16,7 +16,7 @@ export const STATUS: Record<TripView['status'], { label: string; tone: Tone }> =
   cancelled: { label: 'Cancelled', tone: 'neutral' },
 };
 
-export function TripHeader({ trip }: { trip: TripView }) {
+export function TripHeader({ trip, showStatus = true }: { trip: TripView; showStatus?: boolean }) {
   const s = STATUS[trip.status];
   return (
     <Row style={{ alignItems: 'flex-start', justifyContent: 'space-between' }}>
@@ -28,20 +28,41 @@ export function TripHeader({ trip }: { trip: TripView }) {
           {tripTimeLine(trip)}
         </AppText>
       </View>
-      <Pill label={s.label} tone={s.tone} />
+      {showStatus ? <Pill label={s.label} tone={s.tone} /> : null}
     </Row>
   );
+}
+
+// What happened, in one line, for the trip list.
+function summary(trip: TripView): string | null {
+  const m = trip.match;
+  switch (trip.status) {
+    case 'pending_payment':
+      return 'Confirm the hold with your bank to start searching';
+    case 'searching':
+      return `Looking for someone heading your way until ${clock(trip.searchUntil)}`;
+    case 'proposed':
+      return m ? (m.youAccepted ? `Waiting for ${m.partner.firstName} to say yes` : `${m.partner.firstName} can share. You'd save ${money(m.plan.you.savings)}`) : null;
+    case 'confirmed':
+      return m ? `Sharing with ${m.partner.firstName} · pickup ${clock(m.plan.you.pickupAt)}` : null;
+    case 'completed': {
+      if (!m) return null;
+      const s = m.settlement;
+      const share = s ? (m.youBook ? s.actualFare - s.owedToYou : s.youOwe) : m.plan.you.share;
+      const saved = m.plan.you.soloFare - share - m.plan.you.fee;
+      return saved > 0 ? `Shared with ${m.partner.firstName} · you saved ${money(saved)}` : `Shared with ${m.partner.firstName}`;
+    }
+    case 'expired':
+      return 'No match · not charged';
+    case 'cancelled':
+      return trip.payment?.status === 'captured' ? 'Cancelled · match fee kept' : 'Cancelled · not charged';
+  }
 }
 
 // A trip in the list. Tapping opens its detail screen.
 export function TripCard({ trip }: { trip: TripView }) {
   const { c } = useTheme();
-  const m = trip.match;
-  let line: string | null = null;
-  if (trip.status === 'searching') line = `Looking for someone heading your way until ${clock(trip.searchUntil)}`;
-  if (trip.status === 'proposed' && m) line = m.youAccepted ? `Waiting for ${m.partner.firstName} to accept` : `${m.partner.firstName} can share. Save ${money(m.plan.you.savings)}`;
-  if (trip.status === 'confirmed' && m) line = `Riding with ${m.partner.firstName} · pickup ${clock(m.plan.you.pickupAt)}`;
-  if (trip.status === 'pending_payment') line = 'Your bank needs you to approve the hold';
+  const line = summary(trip);
   return (
     <Link href={{ pathname: '/trip/[id]', params: { id: trip.id } }} asChild>
       <Pressable accessibilityRole="button" style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}>
@@ -104,7 +125,9 @@ export function Countdown({ until, prefix = '' }: { until: string; prefix?: stri
 
 export function PartnerRow({ match }: { match: MatchView }) {
   const p = match.partner;
-  const meta = p.ratingAvg ? `★ ${p.ratingAvg.toFixed(1)} · ${p.ridesCompleted} shared rides` : 'New to SplitCab';
+  const trips = `${p.ridesCompleted} shared trip${p.ridesCompleted === 1 ? '' : 's'}`;
+  // Every account is verified with a texted code, which is worth saying to someone about to meet a stranger.
+  const meta = p.ratingAvg ? `★ ${p.ratingAvg.toFixed(1)} · ${trips} · mobile verified` : 'New to SplitCab · mobile verified';
   return (
     <Row>
       <Avatar name={p.firstName} />
@@ -190,16 +213,44 @@ export function PriceBreakdown({ match }: { match: MatchView }) {
 export function MatchFacts({ match }: { match: MatchView }) {
   const y = match.plan.you;
   const facts: string[] = [];
-  if (y.walkToPickupMin > 0) facts.push(`${y.walkToPickupMin} min walk to pickup`);
+  if (y.walkToPickupMin > 0) facts.push(`${y.walkToPickupMin} min walk to the pickup`);
   if (y.walkFromDropMin > 0) facts.push(`${y.walkFromDropMin} min walk after drop-off`);
-  facts.push(y.detourPct > 0.02 ? `Ride is ${pct(y.detourPct)} longer than alone` : 'No detour for you');
-  facts.push(`Total fare about ${money(match.plan.fare)}`);
+  facts.push(y.detourPct > 0.02 ? `Your ride is ${pct(y.detourPct)} longer than going alone` : 'No detour for you');
   return (
-    <Row gap={6} style={{ flexWrap: 'wrap' }}>
-      {facts.map((f) => (
-        <Pill key={f} label={f} />
-      ))}
-    </Row>
+    <AppText variant="small" muted>
+      {facts.join(' · ')}
+    </AppText>
+  );
+}
+
+// Who books the taxi and how the fare share is paid, said before anyone commits.
+export function BookingLine({ match }: { match: MatchView }) {
+  const name = match.partner.firstName;
+  return (
+    <Note>
+      {match.youBook
+        ? `You book the taxi. ${name} pays you their share (about ${money(match.plan.partner.share)}) after the ride.`
+        : `${name} books the taxi. You pay ${name} your share (about ${money(match.plan.you.share)}) after the ride.`}
+    </Note>
+  );
+}
+
+// Labelled header button for reporting or blocking. Kept on every screen where you deal with the other person.
+export function SafetyButton({ matchId, name }: { matchId: string; name: string }) {
+  const { c } = useTheme();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`Safety: report or block ${name}`}
+      onPress={() => router.push({ pathname: '/report/[matchId]', params: { matchId, name } })}
+      hitSlop={8}
+      style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: space.lg, minHeight: 44 }}
+    >
+      <Icon name="shield-checkmark-outline" size={18} />
+      <AppText variant="body" style={{ fontWeight: '600' }} color={c.ink}>
+        Safety
+      </AppText>
+    </Pressable>
   );
 }
 

@@ -1,6 +1,6 @@
 import { formatMoney } from '@splitcab/core';
 import { router } from 'expo-router';
-import { StyleSheet, View } from 'react-native';
+import { Image, StyleSheet, View } from 'react-native';
 import { AppText, Button, Card, Note, Screen } from '../../components/ui';
 import { useConfig } from '../../lib/queries';
 import { space, useTheme } from '../../lib/theme';
@@ -8,7 +8,7 @@ import { space, useTheme } from '../../lib/theme';
 const STEPS = [
   ['Post your trip', 'Pickup, destination, and roughly when you want to leave or arrive.'],
   ['Get matched', "We pair you with someone nearby heading your way and show exactly what you'll each pay."],
-  ['Share one taxi', 'One of you books it in FREENOW, Uber or Bolt, or takes one from a rank. The fare is split fairly.'],
+  ['Share one taxi', 'One of you books the taxi (Uber, FREENOW or a rank). After the ride, the other pays their share to the booker by Revolut or cash.'],
 ] as const;
 
 export default function Welcome() {
@@ -18,16 +18,11 @@ export default function Welcome() {
   return (
     <Screen edges={['top', 'bottom']} footer={<Button title="Continue with your phone number" onPress={() => router.push('/phone')} />}>
       <View style={{ gap: space.md, paddingTop: space.xl }}>
-        <View style={[styles.mark, { backgroundColor: c.accent }]}>
-          <AppText variant="title" color={c.accentInk}>
-            S
-          </AppText>
+        <View style={[styles.mark, { backgroundColor: c.accent }]} accessibilityLabel="SplitCab">
+          <Image source={require('../../../assets/splash-icon.png')} style={{ width: 40, height: 40 }} />
         </View>
         <AppText variant="hero" accessibilityRole="header">
           Share the taxi.{'\n'}Split the fare.
-        </AppText>
-        <AppText variant="body" muted>
-          Tell us where you're headed and roughly when. We'll find someone going the same way so you can take one taxi and pay less.
         </AppText>
       </View>
       <Card>

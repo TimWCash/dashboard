@@ -20,7 +20,7 @@ export async function registerForPush(ask: boolean): Promise<boolean> {
   if (!Device.isDevice) return false;
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync('rides', {
-      name: 'Rides and matches',
+      name: 'Trips and matches',
       importance: Notifications.AndroidImportance.HIGH,
       vibrationPattern: [0, 200, 100, 200],
     });
@@ -33,6 +33,16 @@ export async function registerForPush(ask: boolean): Promise<boolean> {
   const token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
   await api.patch('/v1/me', { pushToken: token });
   return true;
+}
+
+export type PushStatus = 'on' | 'askable' | 'blocked' | 'unsupported';
+
+// Whether match notifications will reach this phone, and if not, whether we can still ask.
+export async function pushStatus(): Promise<PushStatus> {
+  if (!Device.isDevice) return 'unsupported';
+  const p = await Notifications.getPermissionsAsync();
+  if (p.status === 'granted') return 'on';
+  return p.canAskAgain ? 'askable' : 'blocked';
 }
 
 // Opens the right screen when someone taps a notification, and refreshes data when one arrives.

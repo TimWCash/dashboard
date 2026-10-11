@@ -37,7 +37,9 @@ export default function AppLayout() {
       <Stack.Screen name="place-search" options={{ presentation: 'modal', title: 'Search' }} />
       <Stack.Screen name="trip/[id]" options={{ title: 'Your trip' }} />
       <Stack.Screen name="chat/[matchId]" options={{ title: 'Messages' }} />
-      <Stack.Screen name="report/[matchId]" options={{ presentation: 'modal', title: 'Report or block' }} />
+      <Stack.Screen name="report/[matchId]" options={{ presentation: 'modal', title: 'Safety' }} />
+      <Stack.Screen name="payments" options={{ title: 'Payments' }} />
+      <Stack.Screen name="how-it-works" options={{ title: 'How SplitCab works' }} />
     </Stack>
   );
 }

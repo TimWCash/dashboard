@@ -10,7 +10,7 @@ const light = {
   accent: '#FFC629',
   accentStrong: '#F2B400',
   accentInk: '#1A1A1A',
-  good: '#12805C',
+  good: '#0E6B4C',
   goodBg: '#E6F4EE',
   warn: '#9A5B00',
   warnBg: '#FFF4D6',

@@ -5,6 +5,7 @@ import { KeyboardAvoidingView, Platform } from 'react-native';
 import { AppText, Button, Field, Note, Screen } from '../../components/ui';
 import { api, ApiError } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
+import { formatPhone } from '../../lib/format';
 
 const RESEND_AFTER_S = 30;
 
@@ -61,7 +62,7 @@ export default function Code() {
           Enter the code
         </AppText>
         <AppText variant="body" muted>
-          We texted a 6-digit code to {params.phone}.
+          We texted a 6-digit code to {formatPhone(params.phone)}.
         </AppText>
         <Field
           label="Code"
@@ -76,7 +77,6 @@ export default function Code() {
           autoComplete="sms-otp"
           autoFocus
           maxLength={6}
-          placeholder="123456"
           error={error}
           testID="code-input"
           style={{ letterSpacing: 6, fontSize: 22 }}

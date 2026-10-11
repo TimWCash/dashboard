@@ -34,6 +34,7 @@ export default function Phone() {
         </AppText>
         <Field
           label="Mobile number"
+          hint="Irish or international number"
           value={phone}
           onChangeText={setPhone}
           placeholder="087 123 4567"

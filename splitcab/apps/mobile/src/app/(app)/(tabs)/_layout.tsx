@@ -18,11 +18,7 @@ export default function TabsLayout() {
     >
       <Tabs.Screen
         name="index"
-        options={{ title: 'Rides', tabBarIcon: ({ color, size }) => <Ionicons name="car-outline" color={color} size={size} /> }}
-      />
-      <Tabs.Screen
-        name="wallet"
-        options={{ title: 'Wallet', tabBarIcon: ({ color, size }) => <Ionicons name="card-outline" color={color} size={size} /> }}
+        options={{ title: 'Trips', headerShown: false, tabBarIcon: ({ color, size }) => <Ionicons name="car-outline" color={color} size={size} /> }}
       />
       <Tabs.Screen
         name="account"

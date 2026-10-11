@@ -44,7 +44,7 @@ const config: ExpoConfig = {
     '@react-native-community/datetimepicker',
     ['expo-splash-screen', { image: './assets/splash-icon.png', imageWidth: 160, backgroundColor: '#FFC629' }],
     ['expo-location', { locationWhenInUsePermission: 'SplitCab uses your location to fill in your pickup point.' }],
-    ['expo-notifications', { color: '#FFC629', defaultChannel: 'rides' }],
+    ['expo-notifications', { icon: './assets/notification-icon.png', color: '#FFC629', defaultChannel: 'rides' }],
     ['@stripe/stripe-react-native', { merchantIdentifier: applePayMerchantId ?? '', enableGooglePay: true }],
   ],
   experiments: {

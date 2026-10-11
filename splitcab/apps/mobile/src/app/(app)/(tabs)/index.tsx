@@ -1,22 +1,21 @@
-import { formatMoney } from '@splitcab/core';
 import { router } from 'expo-router';
 import { RefreshControl, ScrollView, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { TripCard } from '../../../components/ride';
-import { AppText, Button, Card, Note } from '../../../components/ui';
+import { AppText, Button, Note } from '../../../components/ui';
 import { useAuth } from '../../../lib/auth';
-import { useConfig, useTrips } from '../../../lib/queries';
+import { useTrips } from '../../../lib/queries';
 import { space, useTheme } from '../../../lib/theme';
 
-export default function Rides() {
+export default function Trips() {
   const { c } = useTheme();
   const { me } = useAuth();
   const active = useTrips('active');
   const past = useTrips('past');
-  const config = useConfig();
-  const fee = formatMoney(config.data?.matchFee ?? 199);
   const trips = active.data ?? [];
 
   return (
+    <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: c.bg }}>
     <ScrollView
       style={{ backgroundColor: c.bg }}
       contentContainerStyle={{ padding: space.lg, gap: space.lg }}
@@ -40,16 +39,6 @@ export default function Rides() {
 
       <Button title={trips.length ? 'Plan another trip' : 'Plan a trip'} icon="add" variant={trips.length ? 'ghost' : 'primary'} onPress={() => router.push('/plan')} />
 
-      {!trips.length && !active.isLoading ? (
-        <Card>
-          <AppText variant="heading">How it works</AppText>
-          <AppText variant="small" muted>
-            We place a {fee} hold on your card when you post. If we match you and you both accept, that's your only charge. If not, the hold drops
-            off automatically. Your share of the taxi fare is paid to whoever books it.
-          </AppText>
-        </Card>
-      ) : null}
-
       {past.data?.length ? (
         <View style={{ gap: space.md }}>
           <AppText variant="caption" muted style={{ textTransform: 'uppercase', letterSpacing: 0.6 }}>
@@ -61,5 +50,6 @@ export default function Rides() {
         </View>
       ) : null}
     </ScrollView>
+    </SafeAreaView>
   );
 }

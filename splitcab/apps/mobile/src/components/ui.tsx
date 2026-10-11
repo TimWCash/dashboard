@@ -89,6 +89,12 @@ export function Button({
     link: { bg: 'transparent', fg: c.muted, border: 'transparent' },
     danger: { bg: 'transparent', fg: c.bad, border: c.line },
   }[variant];
+  // Disabled buttons look clearly off rather than a faded version of the real colour.
+  const off = disabled && !loading;
+  const filled = variant === 'primary' || variant === 'dark';
+  const bg = off && filled ? c.surface2 : palette.bg;
+  const fg = off ? c.muted : palette.fg;
+  const border = off && filled ? c.line : palette.border;
   const inactive = disabled || loading;
   return (
     <Pressable
@@ -99,16 +105,16 @@ export function Button({
       style={({ pressed }) => [
         styles.button,
         variant === 'link' && styles.linkButton,
-        { backgroundColor: palette.bg, borderColor: palette.border, opacity: inactive ? 0.55 : pressed ? 0.85 : 1 },
+        { backgroundColor: bg, borderColor: border, opacity: pressed && !inactive ? 0.85 : 1 },
         style,
       ]}
     >
       {loading ? (
-        <ActivityIndicator color={palette.fg} />
+        <ActivityIndicator color={fg} />
       ) : (
         <>
-          {icon ? <Ionicons name={icon} size={18} color={palette.fg} /> : null}
-          <Text style={[type.heading, { color: palette.fg, fontSize: 16 }, variant === 'link' && styles.linkText]}>{title}</Text>
+          {icon ? <Ionicons name={icon} size={18} color={fg} /> : null}
+          <Text style={[type.heading, { color: fg, fontSize: 16, textAlign: 'center' }, variant === 'link' && styles.linkText]}>{title}</Text>
         </>
       )}
     </Pressable>
@@ -155,21 +161,29 @@ export function Note({ children, tone = 'neutral', icon }: { children: ReactNode
   );
 }
 
-export function Field({ label, error, ...input }: { label: string; error?: string | null } & TextInputProps) {
+export function Field({ label, hint, error, ...input }: { label?: string; hint?: string; error?: string | null } & TextInputProps) {
   const { c } = useTheme();
   return (
     <View style={{ gap: space.xs }}>
-      <AppText variant="caption" muted>
-        {label}
-      </AppText>
+      {label ? (
+        <AppText variant="caption" muted>
+          {label}
+        </AppText>
+      ) : null}
       <TextInput
         placeholderTextColor={c.muted}
+        accessibilityLabel={input.accessibilityLabel ?? label}
+        accessibilityHint={hint}
         {...input}
         style={[styles.input, { backgroundColor: c.surface2, borderColor: error ? c.bad : c.line, color: c.ink }, input.style]}
       />
       {error ? (
         <AppText variant="small" color={c.bad}>
           {error}
+        </AppText>
+      ) : hint ? (
+        <AppText variant="small" muted>
+          {hint}
         </AppText>
       ) : null}
     </View>
@@ -246,7 +260,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: space.sm,
   },
-  linkButton: { minHeight: 40 },
+  linkButton: { minHeight: 44 },
   linkText: { fontWeight: '600', textDecorationLine: 'underline' },
   card: { borderRadius: radius.lg, borderWidth: 1, padding: space.lg, gap: space.md },
   pill: { borderRadius: radius.pill, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 3, alignSelf: 'flex-start' },

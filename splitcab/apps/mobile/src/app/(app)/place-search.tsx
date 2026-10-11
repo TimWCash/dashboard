@@ -83,7 +83,7 @@ export default function PlaceSearch() {
   return (
     <View style={{ flex: 1, backgroundColor: c.bg, padding: space.lg, gap: space.md }}>
       <Stack.Screen options={{ title: field === 'destination' ? 'Where to?' : 'Pickup point' }} />
-      <Field label="Search" value={query} onChangeText={setQuery} placeholder="Address, place or Eircode" autoFocus autoCorrect={false} testID="place-query" />
+      <Field accessibilityLabel="Search for a place" value={query} onChangeText={setQuery} placeholder="Address, place or Eircode" autoFocus autoCorrect={false} testID="place-query" />
       {field !== 'destination' ? (
         <Pressable accessibilityRole="button" onPress={useCurrentLocation} style={{ paddingVertical: space.sm }}>
           <Row gap={space.sm}>
