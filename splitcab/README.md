@@ -64,7 +64,7 @@ The app's web build, with sign-in codes shown on screen and simulated cards. Two
 |---|---|
 | `DATABASE_URL` | A Postgres database used only for the demo. With Supabase, use the transaction pooler (port 6543) and a dedicated role. |
 | `DATABASE_TRANSACTION_POOLER` | `true` with a transaction pooler. Then set the timeouts on the role: `ALTER ROLE … SET statement_timeout = '10s'; ALTER ROLE … SET idle_in_transaction_session_timeout = '30s';` |
-| `DATABASE_SSL_CA` | The database's CA certificate (PEM), when it isn't publicly signed (Supabase's pooler). |
+| `DATABASE_SSL_CA` | The database's CA certificate (PEM), when it isn't publicly signed (Supabase's pooler). It can be on one line, with `\n` for line breaks. |
 | `JWT_SECRET` | 32+ random characters. |
 | `NODE_ENV`, `DEMO_MODE`, `OTP_PROVIDER` | `production`, `true`, `demo` |
 | `PAYMENTS_PROVIDER`, `PUSH_PROVIDER`, `PLACES_PROVIDER` | `test`, `log`, `builtin` |

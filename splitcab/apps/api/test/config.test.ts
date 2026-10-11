@@ -45,3 +45,12 @@ describe('rate limit keys', () => {
     expect(rateLimitKey('fe80::1%eth0')).toBe('fe80:0:0:0::/64');
   });
 });
+
+describe('database certificate', () => {
+  test('can be given on one line, with \\n for line breaks', () => {
+    const base = { DATABASE_URL: 'postgres://db/splitcab', JWT_SECRET: 'a-secret-that-is-long-enough-for-hs256' };
+    const pem = '-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----';
+    expect(loadConfig({ ...base, DATABASE_SSL_CA: pem.replaceAll('\n', '\\n') }).DATABASE_SSL_CA).toBe(pem);
+    expect(loadConfig({ ...base, DATABASE_SSL_CA: pem }).DATABASE_SSL_CA).toBe(pem);
+  });
+});

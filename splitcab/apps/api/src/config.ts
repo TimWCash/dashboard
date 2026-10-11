@@ -14,8 +14,12 @@ const schema = z.object({
   DATABASE_URL: z.string().min(1),
   DATABASE_SSL: bool.default(false),
   // PEM certificate of the database's certificate authority, for providers whose certificates aren't signed by a
-  // public one (Supabase's pooler, for example). Turns on TLS with full verification against it.
-  DATABASE_SSL_CA: z.string().optional(),
+  // public one (Supabase's pooler, for example). Turns on TLS with full verification against it. Line breaks may
+  // be written as \n, for hosts whose settings are a single line.
+  DATABASE_SSL_CA: z
+    .string()
+    .optional()
+    .transform((pem) => pem?.replace(/\\n/g, '\n')),
   DATABASE_POOL_MAX: z.coerce.number().int().positive().default(10),
   // Set when DATABASE_URL goes through a transaction-mode pooler (Supabase's port 6543, PgBouncer), which
   // can't keep per-connection settings. Set the timeouts on the database role instead; see the README.
