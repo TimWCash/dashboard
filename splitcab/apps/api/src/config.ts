@@ -1,3 +1,4 @@
+import { parsePhoneNumberFromString } from 'libphonenumber-js';
 import { z } from 'zod';
 
 const bool = z
@@ -30,6 +31,8 @@ const schema = z.object({
   // A fixed number and code for App Store / Play review accounts. Never set these to a real person's number.
   REVIEW_PHONE: z.string().optional(),
   REVIEW_CODE: z.string().regex(/^\d{6}$/).optional(),
+  // Extra words the chat filter rejects, comma-separated.
+  BLOCKED_TERMS: z.string().default(''),
 
   PAYMENTS_PROVIDER: z.enum(['stripe', 'test']).default('test'),
   STRIPE_SECRET_KEY: z.string().optional(),
@@ -66,6 +69,11 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   }
   if (c.PLACES_PROVIDER === 'google' && !c.GOOGLE_MAPS_API_KEY) problems.push('PLACES_PROVIDER=google needs GOOGLE_MAPS_API_KEY');
   if (Boolean(c.REVIEW_PHONE) !== Boolean(c.REVIEW_CODE)) problems.push('Set both REVIEW_PHONE and REVIEW_CODE, or neither');
+  if (c.REVIEW_PHONE) {
+    const parsed = parsePhoneNumberFromString(c.REVIEW_PHONE, 'IE');
+    if (parsed?.isValid()) c.REVIEW_PHONE = parsed.number;
+    else problems.push('REVIEW_PHONE is not a valid phone number');
+  }
   if (c.NODE_ENV === 'production') {
     // Development stand-ins must never reach real users.
     if (c.OTP_PROVIDER !== 'twilio') problems.push('Production requires OTP_PROVIDER=twilio');

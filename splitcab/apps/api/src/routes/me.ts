@@ -93,11 +93,13 @@ export function meRoutes(app: FastifyInstance, deps: Deps, rides: RideService) {
     const user = await getUser(deps.db, req.userId);
     let customerId = user.stripe_customer_id;
     if (!customerId) {
-      customerId = await deps.payments.createCustomer(user.id);
+      // The store review account never touches live payments.
+      const isReviewer = Boolean(deps.config.REVIEW_PHONE) && user.phone === deps.config.REVIEW_PHONE;
+      customerId = await deps.payments.createCustomer(user.id, { test: isReviewer });
       await deps.db.query('UPDATE users SET stripe_customer_id = $2 WHERE id = $1 AND stripe_customer_id IS NULL', [user.id, customerId]);
     }
     const setup = await deps.payments.createSetup(customerId);
-    return { mode: deps.payments.mode, customerId, ...setup };
+    return { mode: deps.payments.modeFor(customerId), customerId, ...setup };
   });
 
   // Called after PaymentSheet succeeds, so the app doesn't have to wait for the webhook.

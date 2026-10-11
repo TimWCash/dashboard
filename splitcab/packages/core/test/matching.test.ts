@@ -119,8 +119,18 @@ describe('matching', () => {
     const plan = planSharedRide(a, b, NOW);
     expect(plan).not.toBeNull();
     for (const t of [a, b]) {
-      expect(Math.abs(plan!.riders[t.id]!.dropoffAt - t.time)).toBeLessThanOrEqual(t.flexMin * MIN);
+      const drop = plan!.riders[t.id]!.dropoffAt;
+      // Never late, and no earlier than they allowed.
+      expect(drop).toBeLessThanOrEqual(t.time);
+      expect(t.time - drop).toBeLessThanOrEqual(t.flexMin * MIN);
     }
+  });
+
+  test('arrive-by riders are never matched into arriving late', () => {
+    // B needs to arrive 20 minutes before A, and won't be late; A can't be 20+ minutes early with 10 minutes' flexibility.
+    const a = trip('a', 'rathmines', 'dub', { mode: 'arrive', at: NOW + 120 * MIN, flex: 10 });
+    const b = trip('b', 'ranelagh', 'dub', { mode: 'arrive', at: NOW + 100 * MIN, flex: 10 });
+    expect(planSharedRide(a, b, NOW)).toBeNull();
   });
 
   test('long regional trips match with large savings', () => {
@@ -163,6 +173,9 @@ describe('matching', () => {
   test('search deadline is before the latest acceptable pickup', () => {
     const t = trip('a', 'stephens-green', 'dub', { at: NOW + 60 * MIN, flex: 30 });
     expect(searchDeadline(t)).toBe(NOW + (60 + 30 - CONFIG.stopSearchingMinutesBefore) * MIN);
+    // For arrive-by, the latest pickup is the one that gets you there exactly on time.
+    const arrive = { ...t, timeMode: 'arrive' as const };
+    expect(searchDeadline(arrive)).toBeLessThan(NOW + 60 * MIN);
   });
 });
 

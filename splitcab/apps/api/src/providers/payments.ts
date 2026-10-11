@@ -42,7 +42,10 @@ export interface AuthorizeInput {
 // cancel the authorisation otherwise.
 export interface PaymentGateway {
   readonly mode: 'stripe' | 'test';
-  createCustomer(userId: string): Promise<string>;
+  // `test` puts the customer on the test gateway (used for the store review account).
+  createCustomer(userId: string, opts?: { test?: boolean }): Promise<string>;
+  // Which gateway a saved customer belongs to.
+  modeFor(customerId: string): 'stripe' | 'test';
   createSetup(customerId: string): Promise<{ ephemeralKey: string; setupIntentClientSecret: string }>;
   defaultCard(customerId: string): Promise<CardSummary | null>;
   authorize(input: AuthorizeInput): Promise<AuthorizeResult>;
@@ -87,6 +90,10 @@ export class StripeGateway implements PaymentGateway {
   async createCustomer(userId: string) {
     const customer = await this.stripe.customers.create({ metadata: { userId } }, { idempotencyKey: `customer:${userId}` });
     return customer.id;
+  }
+
+  modeFor() {
+    return 'stripe' as const;
   }
 
   async createSetup(customerId: string) {
@@ -215,7 +222,10 @@ export class TestGateway implements PaymentGateway {
   private seq = 0;
 
   async createCustomer(userId: string) {
-    return `cus_test_${userId.slice(0, 8)}`;
+    return `cus_test_${userId.replaceAll('-', '').slice(0, 16)}`;
+  }
+  modeFor() {
+    return 'test' as const;
   }
   async createSetup() {
     return { ephemeralKey: 'ek_test', setupIntentClientSecret: 'seti_test_secret' };
@@ -236,9 +246,8 @@ export class TestGateway implements PaymentGateway {
     return { ref, status };
   }
   async retrieve(ref: string) {
-    const intent = this.intents.get(ref);
-    if (!intent) throw new Error(`Unknown payment ${ref}`);
-    return { ref, status: intent.status };
+    // Test intents only live in memory; after a restart treat unknown ones as a placed hold.
+    return { ref, status: this.intents.get(ref)?.status ?? ('authorized' as const) };
   }
   // Simulates the rider completing 3-D Secure in the app.
   completeAction(ref: string) {
@@ -246,9 +255,9 @@ export class TestGateway implements PaymentGateway {
     if (intent?.status === 'requires_action') intent.status = 'authorized';
   }
   private set(ref: string, op: string, status: AuthorizeStatus) {
-    const intent = this.intents.get(ref);
-    if (!intent) throw new Error(`Unknown payment ${ref}`);
+    const intent = this.intents.get(ref) ?? { status, amount: 0 };
     intent.status = status;
+    this.intents.set(ref, intent);
     this.calls.push({ op, ref });
   }
   async capture(ref: string) {
@@ -266,6 +275,58 @@ export class TestGateway implements PaymentGateway {
   }
 }
 
+// Sends the store review account to the test gateway so reviewers never touch live payments.
+// Everything else goes to the live gateway. Test ids are recognisable by their prefixes.
+export class ReviewAwareGateway implements PaymentGateway {
+  readonly mode: 'stripe' | 'test';
+
+  constructor(
+    private live: PaymentGateway,
+    private test: TestGateway = new TestGateway(),
+  ) {
+    this.mode = live.mode;
+  }
+
+  private by(id: string): PaymentGateway {
+    return id.startsWith('cus_test_') || id.startsWith('pi_test_') ? this.test : this.live;
+  }
+
+  createCustomer(userId: string, opts?: { test?: boolean }) {
+    return (opts?.test ? this.test : this.live).createCustomer(userId);
+  }
+  modeFor(customerId: string) {
+    return this.by(customerId).mode;
+  }
+  createSetup(customerId: string) {
+    return this.by(customerId).createSetup(customerId);
+  }
+  defaultCard(customerId: string) {
+    return this.by(customerId).defaultCard(customerId);
+  }
+  authorize(input: AuthorizeInput) {
+    return this.by(input.customerId).authorize(input);
+  }
+  retrieve(ref: string) {
+    return this.by(ref).retrieve(ref);
+  }
+  capture(ref: string, key: string) {
+    return this.by(ref).capture(ref, key);
+  }
+  cancel(ref: string, key: string) {
+    return this.by(ref).cancel(ref, key);
+  }
+  refund(ref: string, key: string) {
+    return this.by(ref).refund(ref, key);
+  }
+  deleteCustomer(customerId: string) {
+    return this.by(customerId).deleteCustomer(customerId);
+  }
+  parseWebhook(rawBody: Buffer, signature: string | undefined) {
+    return this.live.parseWebhook(rawBody, signature);
+  }
+}
+
 export function createPaymentGateway(config: AppConfig): PaymentGateway {
-  return config.PAYMENTS_PROVIDER === 'stripe' ? new StripeGateway(config.STRIPE_SECRET_KEY!, config.STRIPE_WEBHOOK_SECRET!) : new TestGateway();
+  if (config.PAYMENTS_PROVIDER !== 'stripe') return new TestGateway();
+  return new ReviewAwareGateway(new StripeGateway(config.STRIPE_SECRET_KEY!, config.STRIPE_WEBHOOK_SECRET!));
 }

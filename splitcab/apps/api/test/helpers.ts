@@ -37,11 +37,17 @@ export interface Harness extends Built {
   runJobs: () => Promise<number>;
 }
 
-export async function harness(db: Db, opts: { payments?: PaymentGateway } = {}): Promise<Harness> {
+export async function harness(db: Db, opts: { payments?: PaymentGateway; env?: Record<string, string> } = {}): Promise<Harness> {
   const clock = { now: START };
   const gateway = new TestGateway();
   const push = new MemoryPush();
-  const config = loadConfig({ DATABASE_URL: TEST_DB, JWT_SECRET: 'test-secret-that-is-long-enough-for-hs256', NODE_ENV: 'test', LOG_LEVEL: 'silent' });
+  const config = loadConfig({
+    DATABASE_URL: TEST_DB,
+    JWT_SECRET: 'test-secret-that-is-long-enough-for-hs256',
+    NODE_ENV: 'test',
+    LOG_LEVEL: 'silent',
+    ...opts.env,
+  });
   const built = await buildApp({ config, db, clock: () => clock.now, payments: opts.payments ?? gateway, push });
   const app: FastifyInstance = built.app;
   return {

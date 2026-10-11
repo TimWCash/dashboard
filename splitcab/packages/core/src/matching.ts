@@ -23,13 +23,14 @@ export interface SoloWindow {
   solo: SoloEstimate;
 }
 
-// When the taxi would ideally leave this trip's pickup if they rode alone, and how far either side they'll go.
+// When the taxi would ideally leave this trip's pickup if they rode alone, and the window either side.
+// "Leave around" is flexible both ways. "Arrive by" is a deadline: up to flexMin early, never late.
 export function soloWindow(trip: Pick<TripLike, 'origin' | 'destination' | 'timeMode' | 'time' | 'flexMin' | 'seats'>): SoloWindow {
   const minutes = driveMinutes(roadKm(trip.origin, trip.destination));
   const ideal = trip.timeMode === 'arrive' ? trip.time - minutes * MINUTE : trip.time;
   const solo = soloEstimate(trip.origin, trip.destination, { at: ideal, passengers: trip.seats });
   const flex = trip.flexMin * MINUTE;
-  return { ideal, start: ideal - flex, end: ideal + flex, solo };
+  return { ideal, start: ideal - flex, end: trip.timeMode === 'arrive' ? ideal : ideal + flex, solo };
 }
 
 // The last moment it's worth searching for a partner for this trip.
@@ -126,7 +127,8 @@ export function planSharedRide(tripA: TripLike, tripB: TripLike, now: number, cf
       const ideal = t.time - offset;
       ideals.push(ideal);
       lo = Math.max(lo, ideal - t.flexMin * MINUTE);
-      hi = Math.min(hi, ideal + t.flexMin * MINUTE);
+      // Arrive-by riders can be early but never late.
+      hi = Math.min(hi, t.timeMode === 'arrive' ? ideal : ideal + t.flexMin * MINUTE);
     }
     if (lo > hi) continue;
     const mean = (ideals[0]! + ideals[1]!) / 2;

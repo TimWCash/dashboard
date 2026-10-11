@@ -13,6 +13,7 @@ import {
   type TripInput,
 } from '@splitcab/core';
 import { lockMatching, withTx, type Tx } from '../db';
+import { createModerator } from '../moderation';
 import type { Deps } from '../deps';
 import { AppError, badRequest, conflict, forbidden, notFound } from '../errors';
 import { enqueue } from '../jobs/queue';
@@ -47,7 +48,11 @@ function cleanPlace(p: Place): Place {
 }
 
 export class RideService {
-  constructor(private deps: Deps) {}
+  private moderate: ReturnType<typeof createModerator>;
+
+  constructor(private deps: Deps) {
+    this.moderate = createModerator(deps.config.BLOCKED_TERMS.split(','));
+  }
 
   private now() {
     return this.deps.clock();
@@ -172,7 +177,8 @@ export class RideService {
           await enqueue(tx, now, 'payment.cancel', { paymentId });
         } else {
           await this.setTrip(tx, trip.id, { status: 'searching' }, now);
-          await this.tryMatch(tx, { ...trip, status: 'searching' }, now);
+          const match = await this.tryMatch(tx, { ...trip, status: 'searching' }, now);
+          if (!match && (await this.isReviewer(tx, trip.user_id))) await this.addReviewCompanion(tx, { ...trip, status: 'searching' }, now);
         }
       } else if (result.status === 'requires_action') {
         await tx.query('UPDATE payments SET client_secret = $2 WHERE id = $1', [paymentId, result.clientSecret ?? null]);
@@ -232,6 +238,7 @@ export class RideService {
   // Looks for the best partner for a searching trip and proposes the match. Caller holds the matching lock.
   private async tryMatch(tx: Tx, trip: TripRow, now: number): Promise<MatchRow | null> {
     if (trip.status !== 'searching') return null;
+    if (await this.isDemo(tx, trip.user_id)) return null;
     const box = boxAround({ lat: trip.origin_lat, lng: trip.origin_lng }, CONFIG.matching.maxPickupGapKm / CONFIG.geo.circuity);
     // Coarse prefilters only; the matching engine makes the real decision.
     const { rows: candidates } = await tx.query<TripRow>(
@@ -240,6 +247,7 @@ export class RideService {
          AND t.seats + $4 <= $5
          AND t.origin_lat BETWEEN $6 AND $7 AND t.origin_lng BETWEEN $8 AND $9
          AND abs(extract(epoch FROM t.target_time - $10::timestamptz)) <= (t.flex_min + $11) * 60 + 4 * 3600
+         AND NOT EXISTS (SELECT 1 FROM users du WHERE du.id = t.user_id AND du.is_demo)
          AND NOT EXISTS (SELECT 1 FROM trip_exclusions e WHERE e.trip_id = $1 AND e.other_trip_id = t.id)
          AND NOT EXISTS (SELECT 1 FROM blocks b WHERE (b.blocker_id = $2 AND b.blocked_id = t.user_id)
                                                 OR (b.blocker_id = t.user_id AND b.blocked_id = $2))
@@ -274,6 +282,16 @@ export class RideService {
       [a.id, b.id, plan, plan.bookerTripId, new Date(now), new Date(expiresAt)],
     );
     const match = rows[0]!;
+    // A demo traveller (store review only) says yes straight away.
+    for (const [t, column] of [
+      [a, 'a_accepted_at'],
+      [b, 'b_accepted_at'],
+    ] as const) {
+      if (await this.isDemo(tx, t.user_id)) {
+        await tx.query(`UPDATE matches SET ${column} = $2 WHERE id = $1`, [match.id, new Date(now)]);
+        match[column] = new Date(now);
+      }
+    }
     const names = await this.firstNames(tx, [a.user_id, b.user_id]);
     for (const [mine, theirs] of [
       [a, b],
@@ -368,6 +386,10 @@ export class RideService {
 
   // Back to searching, or expired if it's too late to find anyone.
   private async reopen(tx: Tx, trip: TripRow, now: number, { newHold = false } = {}) {
+    if (await this.isDemo(tx, trip.user_id)) {
+      await this.setTrip(tx, trip.id, { status: 'cancelled', match_id: null }, now);
+      return;
+    }
     if (now >= trip.search_until.getTime()) {
       await this.setTrip(tx, trip.id, { status: 'expired', match_id: null }, now);
       if (!newHold && trip.payment_id) await enqueue(tx, now, 'payment.cancel', { paymentId: trip.payment_id });
@@ -440,6 +462,13 @@ export class RideService {
   async sendMessage(userId: string, matchId: string, text: string) {
     const body = text.trim();
     if (!body || body.length > 500) throw badRequest('invalid_message', 'Messages must be between 1 and 500 characters.');
+    const verdict = this.moderate(body);
+    if (!verdict.ok) {
+      throw badRequest(
+        'message_blocked',
+        verdict.reason === 'link' ? "Links can't be sent in chat. Agree where to meet in words instead." : "That message can't be sent. Please keep it friendly.",
+      );
+    }
     return withTx(this.deps.db, async (tx) => {
       const now = this.now();
       const { match, mine, partner } = await this.memberMatch(tx, userId, matchId);
@@ -567,6 +596,53 @@ export class RideService {
       await tx.query('DELETE FROM refresh_tokens WHERE user_id = $1', [userId]);
       if (user.stripe_customer_id) await enqueue(tx, now, 'customer.delete', { customerId: user.stripe_customer_id });
     });
+  }
+
+  // ---- store review account ------------------------------------------------------------------
+
+  private async isDemo(tx: Tx, userId: string) {
+    const { rows } = await tx.query<{ is_demo: boolean }>('SELECT is_demo FROM users WHERE id = $1', [userId]);
+    return rows[0]?.is_demo ?? false;
+  }
+
+  private async isReviewer(tx: Tx, userId: string) {
+    if (!this.deps.config.REVIEW_PHONE) return false;
+    const { rows } = await tx.query<{ phone: string | null }>('SELECT phone FROM users WHERE id = $1', [userId]);
+    return rows[0]?.phone === this.deps.config.REVIEW_PHONE;
+  }
+
+  // App reviewers can't find a real stranger to match with, so their trips get a demo travel partner
+  // who joins a little further along the same route and accepts straight away. Demo travellers never
+  // match anyone else and no real payment is involved.
+  private async addReviewCompanion(tx: Tx, trip: TripRow, now: number) {
+    const along = (a: number, b: number) => a + (b - a) * 0.3;
+    const origin = { label: 'On your way', lat: along(trip.origin_lat, trip.dest_lat), lng: along(trip.origin_lng, trip.dest_lng) };
+    const destination = { label: trip.dest_label, lat: trip.dest_lat, lng: trip.dest_lng };
+    const like = { origin, destination, timeMode: trip.time_mode, time: trip.target_time.getTime(), flexMin: 30, seats: 1 };
+    const searchUntil = searchDeadline(like);
+    if (searchUntil <= now) return;
+    const { rows: users } = await tx.query<{ id: string }>(
+      `INSERT INTO users (first_name, terms_accepted_at, is_demo, rating_sum, rating_count, rides_completed, created_at)
+       VALUES ('Alex', $1, true, 48, 10, 12, $1) RETURNING id`,
+      [new Date(now)],
+    );
+    const demoUserId = users[0]!.id;
+    const { rows } = await tx.query<TripRow>(
+      `INSERT INTO trips (user_id, origin_label, origin_lat, origin_lng, dest_label, dest_lat, dest_lng, time_mode, target_time,
+                          flex_min, seats, status, search_until, solo_fare, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 30, 1, 'searching', $10, $11, $12, $12) RETURNING *`,
+      [demoUserId, origin.label, origin.lat, origin.lng, destination.label, destination.lat, destination.lng, trip.time_mode, trip.target_time, new Date(searchUntil), soloWindow(like).solo.fare, new Date(now)],
+    );
+    const companion = rows[0]!;
+    const { rows: pay } = await tx.query<{ id: string }>(
+      `INSERT INTO payments (user_id, trip_id, amount, currency, status, provider_ref, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, 'authorized', $5, $6, $6) RETURNING id`,
+      [demoUserId, companion.id, CONFIG.matchFee, CONFIG.currency, `pi_test_demo_${companion.id}`, new Date(now)],
+    );
+    await tx.query('UPDATE trips SET payment_id = $2 WHERE id = $1', [companion.id, pay[0]!.id]);
+    const plan = findBestMatch(toTripLike(trip), [toTripLike({ ...companion, payment_id: pay[0]!.id })], now);
+    if (plan) await this.propose(tx, trip, { ...companion, payment_id: pay[0]!.id }, plan.plan, now);
+    else await this.setTrip(tx, companion.id, { status: 'cancelled' }, now);
   }
 
   // ---- clock-driven work ---------------------------------------------------------------------

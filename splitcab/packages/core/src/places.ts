@@ -7,7 +7,9 @@ export interface KnownPlace extends Place {
 }
 
 export const PLACES: KnownPlace[] = [
-  { id: 'dub', group: 'Airports', label: 'Dublin Airport', lat: 53.4273, lng: -6.2436 },
+  // Each terminal's taxi rank, so two strangers have one exact place to meet.
+  { id: 'dub', group: 'Airports', label: 'Dublin Airport T1 (taxi rank)', lat: 53.4273, lng: -6.2436 },
+  { id: 'dub-t2', group: 'Airports', label: 'Dublin Airport T2 (taxi rank)', lat: 53.4265, lng: -6.2389 },
   { id: 'cork-airport', group: 'Airports', label: 'Cork Airport', lat: 51.8472, lng: -8.4911 },
   { id: 'shannon', group: 'Airports', label: 'Shannon Airport', lat: 52.702, lng: -8.9248 },
 
