@@ -87,7 +87,7 @@ export async function rider(h: Harness, name: string, { card = true } = {}): Pro
   if (start.status !== 200) throw new Error(`otp start ${start.status} ${JSON.stringify(start.json)}`);
   const verify = await h.call('POST', '/v1/auth/otp/verify', { body: { phone, code: start.json.devCode } });
   const auth = verify.json as AuthResponse;
-  await h.call('PATCH', '/v1/me', { token: auth.accessToken, body: { firstName: name, acceptTerms: true, pushToken: `ExponentPushToken[${name}]` } });
+  await h.call('PATCH', '/v1/me', { token: auth.accessToken, body: { firstName: name, acceptTerms: true, pushToken: `ExponentPushToken[${name.replace(/\W/g, '')}]` } });
   if (card) {
     await h.call('POST', '/v1/payments/setup', { token: auth.accessToken });
     await h.call('POST', '/v1/payments/method/refresh', { token: auth.accessToken });

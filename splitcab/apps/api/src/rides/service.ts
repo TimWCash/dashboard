@@ -37,6 +37,11 @@ const MINUTE = 60_000;
 const ACTIVE = ['pending_payment', 'searching', 'proposed', 'confirmed'];
 // A hold the rider never authenticated is abandoned after this long.
 const PENDING_PAYMENT_TIMEOUT_MS = 30 * MINUTE;
+const MAX_TRIPS_PER_DAY = 20;
+// After a match falls through, the same two people aren't proposed to each other again for this long.
+const PAIR_COOLDOWN_MS = 24 * 60 * MINUTE;
+// A confirmed ride nobody settled is closed this long after its last drop-off.
+const AUTO_COMPLETE_AFTER_MS = 6 * 60 * MINUTE;
 
 function inServiceArea(p: Place) {
   const a = CONFIG.trips.serviceArea;
@@ -79,6 +84,10 @@ export class RideService {
       throw badRequest('invalid_place', 'Choose where you are leaving from and going to.');
     }
     if (!inServiceArea(origin) || !inServiceArea(destination)) throw badRequest('outside_service_area', 'SplitCab is only available in Ireland for now.');
+    // Labels are shown to the other traveller once matched, so they go through the same filter as chat.
+    if (!this.moderate(origin.label).ok || !this.moderate(destination.label).ok) {
+      throw badRequest('invalid_place', 'Choose the pickup and destination from the search results.');
+    }
     if (roadKm(origin, destination) < CONFIG.trips.minTripKm) {
       throw badRequest('trip_too_short', 'Pickup and destination are too close together to share a taxi.');
     }
@@ -102,6 +111,12 @@ export class RideService {
       if ((active[0]?.n ?? 0) >= CONFIG.trips.maxActiveTripsPerRider) {
         throw conflict('too_many_trips', `You can have up to ${CONFIG.trips.maxActiveTripsPerRider} trips open at once.`);
       }
+      // Posting and abandoning trips over and over is how someone would probe where other people travel from.
+      const { rows: today } = await tx.query<{ n: number }>('SELECT count(*)::int AS n FROM trips WHERE user_id = $1 AND created_at > $2', [
+        userId,
+        new Date(now - 86_400_000),
+      ]);
+      if ((today[0]?.n ?? 0) >= MAX_TRIPS_PER_DAY) throw new AppError(429, 'rate_limited', "You've posted a lot of trips today. Try again tomorrow.");
       const { rows } = await tx.query<{ id: string }>(
         `INSERT INTO trips (user_id, origin_label, origin_lat, origin_lng, dest_label, dest_lat, dest_lng, time_mode, target_time,
                             flex_min, seats, status, search_until, solo_fare, created_at, updated_at)
@@ -249,11 +264,15 @@ export class RideService {
          AND t.seats + $4 <= $5
          AND t.origin_lat BETWEEN $6 AND $7 AND t.origin_lng BETWEEN $8 AND $9
          AND abs(extract(epoch FROM t.target_time - $10::timestamptz)) <= (t.flex_min + $11) * 60 + 4 * 3600
-         AND NOT EXISTS (SELECT 1 FROM users du WHERE du.id = t.user_id AND (du.is_demo OR du.phone = $12))
+         AND NOT EXISTS (SELECT 1 FROM users du WHERE du.id = t.user_id AND (du.is_demo OR du.is_reviewer))
+         AND NOT EXISTS (
+           SELECT 1 FROM matches pm JOIN trips pa ON pa.id = pm.trip_a JOIN trips pb ON pb.id = pm.trip_b
+           WHERE pm.status IN ('declined', 'expired', 'cancelled') AND pm.ended_at > $12
+             AND ((pa.user_id = $2 AND pb.user_id = t.user_id) OR (pb.user_id = $2 AND pa.user_id = t.user_id)))
          AND NOT EXISTS (SELECT 1 FROM trip_exclusions e WHERE e.trip_id = $1 AND e.other_trip_id = t.id)
          AND NOT EXISTS (SELECT 1 FROM blocks b WHERE (b.blocker_id = $2 AND b.blocked_id = t.user_id)
                                                 OR (b.blocker_id = t.user_id AND b.blocked_id = $2))
-       ORDER BY t.created_at
+       ORDER BY abs(extract(epoch FROM t.target_time - $10::timestamptz))
        LIMIT 200`,
       [
         trip.id,
@@ -267,7 +286,7 @@ export class RideService {
         box.maxLng,
         trip.target_time,
         trip.flex_min,
-        this.deps.config.REVIEW_PHONE ?? '',
+        new Date(now - PAIR_COOLDOWN_MS),
       ],
     );
     if (!candidates.length) return null;
@@ -436,6 +455,9 @@ export class RideService {
       case 'confirmed': {
         // Late cancellation: the canceller's fee stays charged; the partner is refunded and re-listed.
         const match = (await getMatch(tx, trip.match_id!, { lock: true }))!;
+        if (now >= match.plan.startAt) {
+          throw conflict('pickup_passed', "The pickup time has passed, so this trip can't be cancelled. If something went wrong, report it from Safety.");
+        }
         const partner = (await getTrip(tx, partnerTripId(match, trip.id), { lock: true }))!;
         await this.endConfirmed(tx, match, trip, partner, now, { refundCanceller: false });
         return;
@@ -578,7 +600,9 @@ export class RideService {
         new Date(now),
       ]);
       if (match.status === 'proposed') await this.unwind(tx, match, 'declined', now, mine.id);
-      else if (match.status === 'confirmed') await this.endConfirmed(tx, match, mine, partner, now, { refundCanceller: true });
+      // Before pickup, blocking cancels the ride and refunds both fees. After pickup the ride has happened,
+      // so blocking only stops future matches and messages.
+      else if (match.status === 'confirmed' && now < match.plan.startAt) await this.endConfirmed(tx, match, mine, partner, now, { refundCanceller: true });
       return mine.id;
     });
   }
@@ -597,6 +621,26 @@ export class RideService {
         [userId, new Date(now)],
       );
       await tx.query('DELETE FROM refresh_tokens WHERE user_id = $1', [userId]);
+      // Trips stay for accounting and disputes, but without where the person lives or goes.
+      await tx.query(
+        `UPDATE trips SET origin_label = 'Removed', dest_label = 'Removed',
+           origin_lat = round(origin_lat::numeric, 2), origin_lng = round(origin_lng::numeric, 2),
+           dest_lat = round(dest_lat::numeric, 2), dest_lng = round(dest_lng::numeric, 2)
+         WHERE user_id = $1`,
+        [userId],
+      );
+      // Matched rides keep a copy of each stop in the plan; blur the ones at this person's own places too.
+      const { rows: plans } = await tx.query<{ id: string; plan: SharedPlan }>(
+        `SELECT DISTINCT m.id, m.plan FROM matches m JOIN trips t ON t.id IN (m.trip_a, m.trip_b) WHERE t.user_id = $1`,
+        [userId],
+      );
+      const theirs = new Set((await tx.query<{ id: string }>('SELECT id FROM trips WHERE user_id = $1', [userId])).rows.map((r) => r.id));
+      const blur = (n: number) => Math.round(n * 100) / 100;
+      for (const { id, plan } of plans) {
+        const route = plan.route.map((s) => (theirs.has(s.tripIds[0]!) ? { ...s, label: 'Removed', lat: blur(s.lat), lng: blur(s.lng) } : s));
+        await tx.query('UPDATE matches SET plan = $2 WHERE id = $1', [id, { ...plan, route }]);
+      }
+      await tx.query('UPDATE reports SET details = NULL WHERE reporter_id = $1', [userId]);
       if (user.stripe_customer_id) await enqueue(tx, now, 'customer.delete', { customerId: user.stripe_customer_id });
     });
   }
@@ -609,9 +653,8 @@ export class RideService {
   }
 
   private async isReviewer(tx: Tx, userId: string) {
-    if (!this.deps.config.REVIEW_PHONE) return false;
-    const { rows } = await tx.query<{ phone: string | null }>('SELECT phone FROM users WHERE id = $1', [userId]);
-    return rows[0]?.phone === this.deps.config.REVIEW_PHONE;
+    const { rows } = await tx.query<{ is_reviewer: boolean }>('SELECT is_reviewer FROM users WHERE id = $1', [userId]);
+    return rows[0]?.is_reviewer ?? false;
   }
 
   // App reviewers can't find a real stranger to match with, so their trips get a demo travel partner
@@ -650,7 +693,8 @@ export class RideService {
 
   // ---- clock-driven work ---------------------------------------------------------------------
 
-  // Expires stale proposals and trips, and retries matching for everyone still searching.
+  // Expires stale proposals and trips, closes rides nobody settled, and retries matching for everyone still
+  // searching. Matching runs in small transactions so the lock is never held for long.
   async sweep(): Promise<void> {
     await this.tx(async (tx) => {
       const now = this.now();
@@ -674,13 +718,31 @@ export class RideService {
         if (trip.payment_id) await enqueue(tx, now, 'payment.cancel', { paymentId: trip.payment_id });
       }
 
-      // Safety net: anything that was missed when it was posted gets another chance.
-      const { rows: searching } = await tx.query<TripRow>("SELECT * FROM trips WHERE status = 'searching' ORDER BY created_at");
-      for (const trip of searching) {
-        const fresh = await getTrip(tx, trip.id);
-        if (fresh?.status === 'searching') await this.tryMatch(tx, fresh, now);
+      // Rides nobody settled: close them some hours after the last drop-off so they don't stay open forever.
+      const { rows: unsettled } = await tx.query<MatchRow>("SELECT * FROM matches WHERE status = 'confirmed' FOR UPDATE");
+      for (const match of unsettled) {
+        const lastStop = match.plan.route[match.plan.route.length - 1];
+        if (!lastStop || now < lastStop.at + AUTO_COMPLETE_AFTER_MS) continue;
+        await tx.query("UPDATE matches SET status = 'completed', ended_at = $2 WHERE id = $1", [match.id, at]);
+        for (const id of [match.trip_a, match.trip_b]) {
+          const { rows } = await tx.query<{ user_id: string }>("UPDATE trips SET status = 'completed', updated_at = $2 WHERE id = $1 RETURNING user_id", [id, at]);
+          await tx.query('UPDATE users SET rides_completed = rides_completed + 1 WHERE id = $1', [rows[0]!.user_id]);
+        }
       }
     });
+
+    // Safety net: anything missed when it was posted gets another chance, a few trips per transaction.
+    const { rows } = await this.deps.db.query<{ id: string }>("SELECT id FROM trips WHERE status = 'searching' ORDER BY created_at LIMIT 1000");
+    for (let i = 0; i < rows.length; i += 20) {
+      const batch = rows.slice(i, i + 20).map((r) => r.id);
+      await this.tx(async (tx) => {
+        const now = this.now();
+        for (const id of batch) {
+          const fresh = await getTrip(tx, id);
+          if (fresh?.status === 'searching') await this.tryMatch(tx, fresh, now);
+        }
+      });
+    }
   }
 
   // Data minimisation: chat and sign-in bookkeeping don't need to live forever.

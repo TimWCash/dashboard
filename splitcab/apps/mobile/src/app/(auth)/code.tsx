@@ -1,19 +1,21 @@
 import type { AuthResponse, OtpStartResponse } from '@splitcab/core';
-import { router, useLocalSearchParams } from 'expo-router';
+import { Redirect, router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { KeyboardAvoidingView, Platform } from 'react-native';
 import { AppText, Button, Field, Note, Screen } from '../../components/ui';
 import { api, ApiError } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 import { formatPhone } from '../../lib/format';
+import { pendingSignIn } from '../../lib/pendingSignIn';
 
 const RESEND_AFTER_S = 30;
 
 export default function Code() {
-  const params = useLocalSearchParams<{ phone: string; devCode?: string }>();
+  const [pending] = useState(pendingSignIn.get);
+  const phone = pending?.phone ?? '';
   const { signIn } = useAuth();
   const [code, setCode] = useState('');
-  const [devCode, setDevCode] = useState(params.devCode);
+  const [devCode, setDevCode] = useState(pending?.devCode);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [wait, setWait] = useState(RESEND_AFTER_S);
@@ -28,8 +30,9 @@ export default function Code() {
     setBusy(true);
     setError(null);
     try {
-      const auth = await api.public.post<AuthResponse>('/v1/auth/otp/verify', { phone: params.phone, code: value });
+      const auth = await api.public.post<AuthResponse>('/v1/auth/otp/verify', { phone, code: value });
       await signIn(auth);
+      pendingSignIn.clear();
       router.replace(auth.user.profileComplete ? '/' : '/profile');
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Something went wrong. Please try again.');
@@ -40,13 +43,17 @@ export default function Code() {
   async function resend() {
     setError(null);
     try {
-      const res = await api.public.post<OtpStartResponse>('/v1/auth/otp/start', { phone: params.phone });
-      setDevCode(res.devCode);
+      const res = await api.public.post<OtpStartResponse>('/v1/auth/otp/start', { phone });
+      pendingSignIn.set(res);
+      setDevCode(pendingSignIn.get()?.devCode);
       setWait(RESEND_AFTER_S);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Something went wrong. Please try again.');
     }
   }
+
+  // Opened directly (a link, or the app restarted here): start again from the number.
+  if (!pending) return <Redirect href="/phone" />;
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -62,7 +69,7 @@ export default function Code() {
           Enter the code
         </AppText>
         <AppText variant="body" muted>
-          We texted a 6-digit code to {formatPhone(params.phone)}.
+          We texted a 6-digit code to {formatPhone(phone)}.
         </AppText>
         <Field
           label="Code"

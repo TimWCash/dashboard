@@ -1,4 +1,4 @@
-import { parsePhoneNumberFromString } from 'libphonenumber-js';
+import { getCountryCallingCode, isSupportedCountry, parsePhoneNumberFromString, type CountryCode } from 'libphonenumber-js';
 import { z } from 'zod';
 
 const bool = z
@@ -25,6 +25,12 @@ const schema = z.object({
   // How many proxies sit in front of the API (1 behind a typical PaaS load balancer). Client IPs for rate limiting
   // come from X-Forwarded-For only through that many hops, so clients can't spoof their address.
   TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(5).default(0),
+  // ISO country codes whose mobile numbers can sign in.
+  ALLOWED_PHONE_COUNTRIES: z
+    .string()
+    .default('IE,GB')
+    .transform((s) => s.split(',').map((c) => c.trim().toUpperCase()).filter(Boolean))
+    .refine((list) => list.length > 0 && list.every((c) => isSupportedCountry(c)), 'ALLOWED_PHONE_COUNTRIES must list ISO country codes, e.g. IE,GB'),
 
   OTP_PROVIDER: z.enum(['twilio', 'dev']).default('dev'),
   TWILIO_ACCOUNT_SID: z.string().optional(),
@@ -73,8 +79,11 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   if (Boolean(c.REVIEW_PHONE) !== Boolean(c.REVIEW_CODE)) problems.push('Set both REVIEW_PHONE and REVIEW_CODE, or neither');
   if (c.REVIEW_PHONE) {
     const parsed = parsePhoneNumberFromString(c.REVIEW_PHONE, 'IE');
-    if (parsed?.isValid()) c.REVIEW_PHONE = parsed.number;
-    else problems.push('REVIEW_PHONE is not a valid phone number');
+    if (!parsed?.isValid()) problems.push('REVIEW_PHONE is not a valid phone number');
+    else if (!c.ALLOWED_PHONE_COUNTRIES.some((cc) => getCountryCallingCode(cc as CountryCode) === parsed.countryCallingCode)) {
+      problems.push('REVIEW_PHONE must be from ALLOWED_PHONE_COUNTRIES');
+    }
+    else c.REVIEW_PHONE = parsed.number;
   }
   if (c.NODE_ENV === 'production') {
     // Development stand-ins must never reach real users.
@@ -82,6 +91,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     if (c.PAYMENTS_PROVIDER !== 'stripe') problems.push('Production requires PAYMENTS_PROVIDER=stripe');
     if (c.PUSH_PROVIDER !== 'expo') problems.push('Production requires PUSH_PROVIDER=expo');
     if (c.STRIPE_SECRET_KEY?.startsWith('sk_test_')) problems.push('Production is using a Stripe test key');
+    // Guessing wrong either way breaks rate limiting: too few hops and every request shares the load balancer's
+    // address; too many and clients can pick their own.
+    if (env.TRUST_PROXY_HOPS === undefined) problems.push('Production requires TRUST_PROXY_HOPS (0 if clients connect directly, 1 behind one load balancer)');
   }
   if (problems.length) throw new Error(`Invalid configuration:\n${problems.map((p) => `  ${p}`).join('\n')}`);
   return c;

@@ -1,5 +1,13 @@
+import { timingSafeEqual } from 'node:crypto';
 import type { AppConfig } from '../config';
 import { AppError } from '../errors';
+
+// Compares codes in constant time, so response timing can't reveal how many leading digits were right.
+function sameCode(a: string, b: string) {
+  const x = Buffer.from(a);
+  const y = Buffer.from(b);
+  return x.length === y.length && timingSafeEqual(x, y);
+}
 
 export interface OtpProvider {
   // Returns a code to show the developer, only for the development provider.
@@ -62,7 +70,7 @@ export class DevOtp implements OtpProvider {
     const entry = this.codes.get(phone);
     if (!entry || entry.expires < Date.now() || entry.attempts >= 5) return false;
     entry.attempts++;
-    if (entry.code !== code) return false;
+    if (!sameCode(entry.code, code)) return false;
     this.codes.delete(phone);
     return true;
   }
@@ -81,7 +89,7 @@ export class ReviewAccountOtp implements OtpProvider {
   }
 
   check(phone: string, code: string) {
-    return phone === this.reviewPhone ? Promise.resolve(code === this.reviewCode) : this.inner.check(phone, code);
+    return phone === this.reviewPhone ? Promise.resolve(sameCode(code, this.reviewCode)) : this.inner.check(phone, code);
   }
 }
 

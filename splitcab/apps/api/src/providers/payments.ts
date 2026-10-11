@@ -51,7 +51,8 @@ export interface PaymentGateway {
   authorize(input: AuthorizeInput): Promise<AuthorizeResult>;
   retrieve(ref: string): Promise<AuthorizeResult>;
   capture(ref: string, idempotencyKey: string): Promise<void>;
-  cancel(ref: string, idempotencyKey: string): Promise<void>;
+  // Releases a hold. Says so if the money had in fact already been captured, so the caller can refund instead.
+  cancel(ref: string, idempotencyKey: string): Promise<'released' | 'already_captured'>;
   refund(ref: string, idempotencyKey: string): Promise<void>;
   deleteCustomer(customerId: string): Promise<void>;
   parseWebhook(rawBody: Buffer, signature: string | undefined): GatewayEvent;
@@ -162,8 +163,9 @@ export class StripeGateway implements PaymentGateway {
 
   async cancel(ref: string, idempotencyKey: string) {
     const pi = await this.stripe.paymentIntents.retrieve(ref);
-    if (pi.status === 'canceled' || pi.status === 'succeeded') return;
-    await this.stripe.paymentIntents.cancel(ref, { cancellation_reason: 'abandoned' }, { idempotencyKey });
+    if (pi.status === 'succeeded') return 'already_captured' as const;
+    if (pi.status !== 'canceled') await this.stripe.paymentIntents.cancel(ref, { cancellation_reason: 'abandoned' }, { idempotencyKey });
+    return 'released' as const;
   }
 
   async refund(ref: string, idempotencyKey: string) {
@@ -264,7 +266,9 @@ export class TestGateway implements PaymentGateway {
     this.set(ref, 'capture', 'captured');
   }
   async cancel(ref: string) {
+    if (this.intents.get(ref)?.status === 'captured') return 'already_captured' as const;
     this.set(ref, 'cancel', 'released');
+    return 'released' as const;
   }
   async refund(ref: string) {
     this.calls.push({ op: 'refund', ref });

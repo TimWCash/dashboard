@@ -23,12 +23,14 @@ Everything the code can't do for you, in roughly the order to do it. Items marke
 - [ ] Postgres 16 in the EU, ideally Dublin (AWS eu-west-1): Neon, Supabase or RDS. Turn on automated backups and point-in-time recovery.
 - [ ] Host the API in the same region (Fly.io, Render, Railway, AWS ECS…) using `apps/api/Dockerfile`. Health check `/ready`. Two small instances are plenty to start.
 - [ ] Set every variable in `apps/api/.env.example` as a secret. `NODE_ENV=production` refuses to start with development stand-ins or Stripe test keys.
+- [ ] Set `TRUST_PROXY_HOPS` to the number of proxies in front of the API (usually 1 behind a PaaS load balancer). Production won't start without it. Check that `req.ip` in the logs shows real client addresses, not the load balancer's.
+- [ ] Per-IP rate limits are kept in memory on each instance, so with N instances a client gets N times the limit. That's fine for two instances. Beyond that, move `@fastify/rate-limit` to a shared Redis store. Sign-in limits per phone number are already shared, because they live in Postgres.
 - [ ] Uptime monitoring on `/ready`, log retention, and an alert on failed background jobs (`SELECT count(*) FROM jobs WHERE failed_at IS NOT NULL`).
 - [ ] **Recommended:** add error tracking (for example Sentry) to the API and app before launch, and update `store/privacy-answers.md` if you do.
 
 ## 4. Third-party services
 
-- [ ] **Twilio Verify:** create a Verify service, enable Fraud Guard (SMS pumping protection), and set an alphanumeric sender ID for Ireland.
+- [ ] **Twilio Verify:** create a Verify service, enable Fraud Guard (SMS pumping protection), and set an alphanumeric sender ID for Ireland. Under Geo permissions allow SMS only to the countries in `ALLOWED_PHONE_COUNTRIES` (Ireland and the UK by default), so a bug can't run up SMS charges elsewhere.
 - [ ] **Stripe:** activate an Irish account and switch to live keys. Add a webhook endpoint `https://<api>/v1/webhooks/stripe` for `payment_intent.amount_capturable_updated`, `payment_intent.payment_failed`, `payment_intent.succeeded`, `payment_intent.canceled`, `charge.refunded` and `setup_intent.succeeded`. Set the statement descriptor. Test 3-D Secure with Stripe's test cards before going live.
 - [ ] **Google Maps Platform (optional but recommended):** enable Places API (New), create a key restricted to your API servers, set `PLACES_PROVIDER=google`, and add a billing alert.
 - [ ] **Expo / EAS:** `npx eas-cli@latest init` to create the project; set `EAS_PROJECT_ID`. Upload an APNs key (iOS push) and an FCM V1 service account (Android push) with `eas credentials`.

@@ -1,4 +1,4 @@
-import type { MatchView, MeView, PaymentView, TripView } from '@splitcab/core';
+import { haversineKm, PLACES, type LatLng, type MatchView, type MeView, type PaymentView, type RouteStop, type TripView } from '@splitcab/core';
 import type { Queryable } from '../db';
 import { notFound } from '../errors';
 import { acceptedAt, getMatch, getPayment, partnerTripId, type MatchRow, type TripRow, type UserRow } from './rows';
@@ -33,6 +33,21 @@ async function latestMatch(q: Queryable, tripId: string, currentMatchId: string 
   return rows[0] ?? null;
 }
 
+const FIVE_MIN = 5 * 60_000;
+
+// A coarse description of someone else's stop: the nearest well-known place, or a distance band. Never their
+// exact address, which could be their home.
+function areaLabel(point: LatLng, from: LatLng): string {
+  let best: { label: string; km: number } | null = null;
+  for (const p of PLACES) {
+    const km = haversineKm(point, p);
+    if (km <= 2.5 && (!best || km < best.km)) best = { label: p.label, km };
+  }
+  if (best) return `${best.label.replace(/ \(.*\)$/, '')} area`;
+  const km = Math.max(0.5, Math.round(haversineKm(point, from) * 2) / 2);
+  return `About ${km} km from you`;
+}
+
 async function matchView(q: Queryable, trip: TripRow, m: MatchRow): Promise<MatchView> {
   const otherId = partnerTripId(m, trip.id);
   const { rows } = await q.query<TripRow & { u_first_name: string | null; u_rating_sum: number; u_rating_count: number; u_rides: number; u_deleted: Date | null }>(
@@ -54,6 +69,18 @@ async function matchView(q: Queryable, trip: TripRow, m: MatchRow): Promise<Matc
   const revealed = m.status === 'confirmed' || m.status === 'completed';
   const youBook = m.booker_trip_id === trip.id;
   const s = m.settlement;
+  const myOrigin = { lat: trip.origin_lat, lng: trip.origin_lng };
+  const myDest = { lat: trip.dest_lat, lng: trip.dest_lng };
+  // A stop at the partner's place, shown before both accept. When it's no walk from your own place, it's
+  // effectively yours, so show your own place rather than theirs.
+  const hiddenStop = (stop: RouteStop, mine: boolean): { label: string; lat: number | null; lng: number | null } => {
+    const pickup = stop.kind === 'pickup';
+    const walk = pickup ? me.walkToPickupMin : me.walkFromDropMin;
+    if (mine && walk === 0) return pickup ? { label: trip.origin_label, ...myOrigin } : { label: trip.dest_label, ...myDest };
+    if (mine && pickup) return { label: `Meeting point, about ${walk} min walk`, lat: null, lng: null };
+    if (mine) return { label: `Shared drop-off, about ${walk} min walk from your destination`, lat: null, lng: null };
+    return { label: areaLabel(stop, pickup ? myOrigin : myDest), lat: null, lng: null };
+  };
 
   return {
     id: m.id,
@@ -76,9 +103,9 @@ async function matchView(q: Queryable, trip: TripRow, m: MatchRow): Promise<Matc
       seats: other.seats,
     },
     plan: {
-      startAt: iso(plan.startAt),
+      startAt: iso(revealed ? plan.startAt : Math.round(plan.startAt / FIVE_MIN) * FIVE_MIN),
       fare: plan.fare,
-      totalKm: plan.totalKm,
+      totalKm: revealed ? plan.totalKm : Math.round(plan.totalKm),
       totalMin: plan.totalMin,
       savingsPct: plan.savingsPct,
       meetUp: plan.meetUp,
@@ -96,15 +123,16 @@ async function matchView(q: Queryable, trip: TripRow, m: MatchRow): Promise<Matc
       partner: { share: partnerPlan.share },
       route: plan.route.map((stop) => {
         const mine = stop.tripIds.includes(trip.id);
-        const visible = revealed || mine;
+        // A stop sits at the first listed rider's own origin or destination. Before both accept, only that
+        // rider sees its exact place, even when the other rider shares the stop (meeting point, shared drop-off).
+        const visible = revealed || stop.tripIds[0] === trip.id;
+        const place = visible ? { label: stop.label, lat: stop.lat, lng: stop.lng } : hiddenStop(stop, mine);
         return {
           kind: stop.kind,
           you: mine,
           partner: stop.tripIds.includes(otherId),
-          label: visible ? stop.label : `Near ${stop.label}`,
-          lat: visible ? stop.lat : null,
-          lng: visible ? stop.lng : null,
-          at: iso(stop.at),
+          ...place,
+          at: iso(visible ? stop.at : Math.round(stop.at / FIVE_MIN) * FIVE_MIN),
         };
       }),
     },

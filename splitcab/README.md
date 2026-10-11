@@ -44,7 +44,7 @@ npm test -w @splitcab/core
 TEST_DATABASE_URL=postgres://postgres@127.0.0.1:5432/splitcab_test npm test -w @splitcab/api   # wipes that database
 ```
 
-The API tests run against a real Postgres database. They cover sign-in and token rotation, the full ride lifecycle, holds, captures, releases and refunds, 3-D Secure, cancellations, blocking and reporting, chat filtering, privacy of the other rider's details, concurrent matching, account deletion and export, the store review account, and signed Stripe webhooks. CI (`.github/workflows/splitcab.yml`) runs these plus the mobile typecheck, iOS/Android bundles and the API Docker build.
+The API tests run against a real Postgres database. They cover sign-in, wrong-code lockouts and token rotation, the full ride lifecycle, holds, captures, releases and refunds (including captures that race a release), 3-D Secure, cancellations before and after pickup, blocking and reporting, chat and name filtering, privacy of the other rider's stops before both accept, posting limits and pair cooldowns, concurrent matching, account deletion and export, the store review account, production config guards, and signed Stripe webhooks. CI (`.github/workflows/splitcab.yml`) runs these plus the mobile typecheck, iOS/Android bundles and the API Docker build.
 
 ## Deploying
 

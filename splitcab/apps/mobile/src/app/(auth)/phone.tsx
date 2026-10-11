@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { KeyboardAvoidingView, Platform } from 'react-native';
 import { AppText, Button, Field, Screen } from '../../components/ui';
 import { api, ApiError } from '../../lib/api';
+import { pendingSignIn } from '../../lib/pendingSignIn';
 
 export default function Phone() {
   const [phone, setPhone] = useState('');
@@ -15,7 +16,8 @@ export default function Phone() {
     setError(null);
     try {
       const res = await api.public.post<OtpStartResponse>('/v1/auth/otp/start', { phone });
-      router.push({ pathname: '/code', params: { phone: res.phone, ...(res.devCode ? { devCode: res.devCode } : {}) } });
+      pendingSignIn.set(res);
+      router.push('/code');
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Something went wrong. Please try again.');
     } finally {
@@ -34,7 +36,7 @@ export default function Phone() {
         </AppText>
         <Field
           label="Mobile number"
-          hint="Irish or international number"
+          hint="Irish or UK mobile number"
           value={phone}
           onChangeText={setPhone}
           placeholder="087 123 4567"

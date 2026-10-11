@@ -6,7 +6,7 @@ import { TokenService } from './auth/tokens';
 import type { AppConfig } from './config';
 import type { Db } from './db';
 import type { Deps } from './deps';
-import { registerErrorHandler } from './http';
+import { rateLimitKey, registerErrorHandler } from './http';
 import { createJobHandlers } from './jobs/handlers';
 import { JobWorker } from './jobs/queue';
 import { createOtpProvider, type OtpProvider } from './providers/otp';
@@ -45,6 +45,10 @@ export async function buildApp(opts: BuildOptions): Promise<Built> {
         : {
             level: config.LOG_LEVEL,
             redact: ['req.headers.authorization', 'req.headers.cookie', 'req.headers["stripe-signature"]'],
+            // Query strings carry place searches and coordinates; keep them out of the logs.
+            serializers: {
+              req: (req: { method: string; url: string; ip?: string }) => ({ method: req.method, url: req.url.split('?')[0], remoteAddress: req.ip }),
+            },
             ...(config.NODE_ENV === 'development' ? { transport: { target: 'pino-pretty' } } : {}),
           },
     // Trust exactly TRUST_PROXY_HOPS proxies, counted from the API inwards.
@@ -75,7 +79,7 @@ export async function buildApp(opts: BuildOptions): Promise<Built> {
     await app.register(rateLimit, {
       max: 300,
       timeWindow: '1 minute',
-      keyGenerator: (req) => req.ip,
+      keyGenerator: (req) => rateLimitKey(req.ip),
     });
   }
 

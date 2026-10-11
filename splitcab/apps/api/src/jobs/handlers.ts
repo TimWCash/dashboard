@@ -1,9 +1,9 @@
-import { withTx } from '../db';
+import { withTx, type Tx } from '../db';
 import type { Deps } from '../deps';
 import type { GatewayEvent } from '../providers/payments';
 import type { RideService } from '../rides/service';
 import { getPayment, setPaymentStatus, type PaymentRow } from '../rides/rows';
-import type { JobHandlers } from './queue';
+import { enqueue, type JobHandlers } from './queue';
 
 // Moves a payment to a new status if it's still in one of the expected states. Returns whether it moved.
 async function transition(deps: Deps, paymentId: string, from: PaymentRow['status'][], to: PaymentRow['status']) {
@@ -15,47 +15,67 @@ async function transition(deps: Deps, paymentId: string, from: PaymentRow['statu
   });
 }
 
+// Runs payment work with the payment row locked, across the call to Stripe, so a capture and a release or
+// refund of the same payment can never interleave (even with several workers).
+async function withPayment(deps: Deps, paymentId: string, fn: (payment: PaymentRow, tx: Tx) => Promise<void>) {
+  await withTx(deps.db, async (tx) => {
+    const payment = await getPayment(tx, paymentId, { lock: true });
+    if (payment) await fn(payment, tx);
+  });
+}
+
 export function createJobHandlers(deps: Deps, rides: RideService): JobHandlers {
   const { payments } = deps;
+  const now = () => deps.clock();
+
+  // Gives the money back whatever state the intent is in: release the hold, or refund if it was captured.
+  async function giveBack(payment: PaymentRow, tx: Tx) {
+    const result = await payments.cancel(payment.provider_ref!, `cancel:${payment.id}`);
+    if (result === 'already_captured') {
+      await payments.refund(payment.provider_ref!, `refund:${payment.id}`);
+      await setPaymentStatus(tx, payment.id, 'refunded', now());
+    } else {
+      await setPaymentStatus(tx, payment.id, 'released', now());
+    }
+  }
+
   return {
     'payment.authorize': async ({ paymentId }) => {
       await rides.authorizeOffSession(paymentId);
     },
 
-    'payment.capture': async ({ paymentId }) => {
-      const payment = await getPayment(deps.db, paymentId);
-      if (!payment || payment.status !== 'authorized' || !payment.provider_ref) return;
-      await payments.capture(payment.provider_ref, `capture:${paymentId}`);
-      await transition(deps, paymentId, ['authorized'], 'captured');
-    },
+    'payment.capture': async ({ paymentId }) =>
+      withPayment(deps, paymentId, async (payment, tx) => {
+        if (payment.status !== 'authorized' || !payment.provider_ref) return;
+        await payments.capture(payment.provider_ref, `capture:${paymentId}`);
+        await setPaymentStatus(tx, paymentId, 'captured', now());
+      }),
 
-    'payment.cancel': async ({ paymentId }) => {
-      const payment = await getPayment(deps.db, paymentId);
-      if (!payment || !['pending', 'requires_action', 'authorized'].includes(payment.status)) return;
-      if (!payment.provider_ref) {
-        // The hold is still being placed. Retry shortly; by then we'll know its id.
-        if (payment.status === 'pending' && deps.clock() - payment.created_at.getTime() < 60 * 60_000) {
-          throw new Error('Authorisation still in progress');
+    'payment.cancel': async ({ paymentId }) =>
+      withPayment(deps, paymentId, async (payment, tx) => {
+        if (!['pending', 'requires_action', 'authorized'].includes(payment.status)) return;
+        if (!payment.provider_ref) {
+          // The hold is still being placed. Retry shortly; by then we'll know its id.
+          if (payment.status === 'pending' && now() - payment.created_at.getTime() < 60 * 60_000) {
+            throw new Error('Authorisation still in progress');
+          }
+          await setPaymentStatus(tx, paymentId, 'released', now());
+          return;
         }
-        await transition(deps, paymentId, ['pending', 'requires_action', 'authorized'], 'released');
-        return;
-      }
-      await payments.cancel(payment.provider_ref, `cancel:${paymentId}`);
-      await transition(deps, paymentId, ['pending', 'requires_action', 'authorized'], 'released');
-    },
+        await giveBack(payment, tx);
+      }),
 
-    'payment.refund': async ({ paymentId }) => {
-      const payment = await getPayment(deps.db, paymentId);
-      if (!payment?.provider_ref) return;
-      if (payment.status === 'authorized') {
-        // Not captured yet, so release the hold instead of refunding.
-        await payments.cancel(payment.provider_ref, `cancel:${paymentId}`);
-        await transition(deps, paymentId, ['authorized'], 'released');
-      } else if (payment.status === 'captured') {
-        await payments.refund(payment.provider_ref, `refund:${paymentId}`);
-        await transition(deps, paymentId, ['captured'], 'refunded');
-      }
-    },
+    'payment.refund': async ({ paymentId }) =>
+      withPayment(deps, paymentId, async (payment, tx) => {
+        if (!payment.provider_ref) return;
+        if (payment.status === 'authorized') {
+          // Not captured yet, so release the hold instead of refunding.
+          await giveBack(payment, tx);
+        } else if (payment.status === 'captured') {
+          await payments.refund(payment.provider_ref, `refund:${paymentId}`);
+          await setPaymentStatus(tx, paymentId, 'refunded', now());
+        }
+      }),
 
     'customer.delete': async ({ customerId }) => {
       await payments.deleteCustomer(customerId);
@@ -101,7 +121,10 @@ export async function handleGatewayEvent(deps: Deps, rides: RideService, event: 
       await rides.applyAuthorization(paymentId, { ref: event.ref, status: 'failed', failure: event.failure });
       break;
     case 'payment.captured':
-      await transition(deps, paymentId, ['authorized'], 'captured');
+      if (!(await transition(deps, paymentId, ['authorized'], 'captured'))) {
+        // Captured at Stripe although we'd already given the money back: record it and refund.
+        if (await transition(deps, paymentId, ['released'], 'captured')) await enqueue(deps.db, deps.clock(), 'payment.refund', { paymentId });
+      }
       break;
     case 'payment.released':
       await transition(deps, paymentId, ['pending', 'requires_action', 'authorized'], 'released');

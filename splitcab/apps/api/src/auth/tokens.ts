@@ -75,10 +75,17 @@ export class TokenService {
       await q.query('UPDATE refresh_tokens SET revoked_at = $2 WHERE family_id = $1 AND revoked_at IS NULL', [row.family_id, now]);
       throw unauthorized();
     }
-    // Conditional update so two concurrent refreshes with the same token can't both succeed.
-    const claimed = await q.query('UPDATE refresh_tokens SET used_at = $2 WHERE id = $1 AND used_at IS NULL', [row.id, now]);
+    // Conditional update so two concurrent refreshes with the same token can't both succeed, and a token
+    // revoked since we read it can't be used.
+    const claimed = await q.query('UPDATE refresh_tokens SET used_at = $2 WHERE id = $1 AND used_at IS NULL AND revoked_at IS NULL', [row.id, now]);
     if (claimed.rowCount !== 1) throw unauthorized();
     const refreshToken = await this.issueRefresh(q, row.user_id, row.family_id);
+    // If a replay revoked the family while we were issuing, the new token must die with it.
+    const { rowCount } = await q.query('SELECT 1 FROM refresh_tokens WHERE family_id = $1 AND revoked_at IS NOT NULL LIMIT 1', [row.family_id]);
+    if (rowCount) {
+      await q.query('UPDATE refresh_tokens SET revoked_at = $2 WHERE family_id = $1 AND revoked_at IS NULL', [row.family_id, now]);
+      throw unauthorized();
+    }
     return { userId: row.user_id, refreshToken };
   }
 

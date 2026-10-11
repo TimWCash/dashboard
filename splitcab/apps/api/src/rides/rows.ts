@@ -17,6 +17,8 @@ export interface UserRow {
   rides_completed: number;
   created_at: Date;
   deleted_at: Date | null;
+  is_demo: boolean;
+  is_reviewer: boolean;
 }
 
 export interface TripRow {

@@ -4,12 +4,14 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import type { Deps } from '../deps';
 import { authenticate, parse } from '../http';
+import { createModerator } from '../moderation';
 import { getUser, type UserRow } from '../rides/rows';
 import type { RideService } from '../rides/service';
 import { listPaymentViews, meView } from '../rides/views';
 
 export function meRoutes(app: FastifyInstance, deps: Deps, rides: RideService) {
   const auth = { preHandler: authenticate(deps) };
+  const moderate = createModerator(deps.config.BLOCKED_TERMS.split(','));
 
   app.get('/v1/config', async (): Promise<ClientConfig> => ({
     currency: CONFIG.currency,
@@ -29,7 +31,15 @@ export function meRoutes(app: FastifyInstance, deps: Deps, rides: RideService) {
   app.patch('/v1/me', auth, async (req): Promise<MeView> => {
     const body = parse(
       z.object({
-        firstName: z.string().trim().min(1, 'Enter your first name.').max(40).optional(),
+        // Shown to the other traveller, so letters only (any alphabet), plus spaces, hyphens and apostrophes.
+        firstName: z
+          .string()
+          .trim()
+          .min(1, 'Enter your first name.')
+          .max(40)
+          .regex(/^\p{L}[\p{L}\p{M}' .’-]*$/u, 'Use letters only in your first name.')
+          .refine((name) => moderate(name).ok, 'Choose a different name.')
+          .optional(),
         acceptTerms: z.literal(true).optional(),
         // Expo push tokens look like ExponentPushToken[xxxx].
         pushToken: z.string().regex(/^Expo(nent)?PushToken\[[\w-]+\]$/).nullable().optional(),
@@ -94,8 +104,7 @@ export function meRoutes(app: FastifyInstance, deps: Deps, rides: RideService) {
     let customerId = user.stripe_customer_id;
     if (!customerId) {
       // The store review account never touches live payments.
-      const isReviewer = Boolean(deps.config.REVIEW_PHONE) && user.phone === deps.config.REVIEW_PHONE;
-      customerId = await deps.payments.createCustomer(user.id, { test: isReviewer });
+      customerId = await deps.payments.createCustomer(user.id, { test: user.is_reviewer });
       await deps.db.query('UPDATE users SET stripe_customer_id = $2 WHERE id = $1 AND stripe_customer_id IS NULL', [user.id, customerId]);
     }
     const setup = await deps.payments.createSetup(customerId);

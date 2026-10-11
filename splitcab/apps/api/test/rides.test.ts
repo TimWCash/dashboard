@@ -1,6 +1,7 @@
 import { CONFIG } from '@splitcab/core';
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vitest';
 import type { Db } from '../src/db';
+import { handleGatewayEvent } from '../src/jobs/handlers';
 import { MIN, get, harness, post, refresh, resetDb, rider, testDb, trip, type Harness } from './helpers';
 
 let db: Db;
@@ -55,6 +56,16 @@ describe('posting a trip', () => {
     }
   });
 
+  test('limits how many trips one person can post in a day', async () => {
+    const ana = await rider(h, 'Ana');
+    for (let i = 0; i < 20; i++) {
+      const t = await post(h, ana, trip('stephens-green', 'dub', { inMin: 60 + i }));
+      await h.call('POST', `/v1/trips/${t.id}/cancel`, { token: ana.token });
+    }
+    const res = await h.call('POST', '/v1/trips', { token: ana.token, body: trip('stephens-green', 'dub') });
+    expect(res.status).toBe(429);
+  });
+
   test('limits how many trips one person can have open', async () => {
     const ana = await rider(h, 'Ana');
     for (let i = 0; i < CONFIG.trips.maxActiveTripsPerRider; i++) await post(h, ana, trip('stephens-green', 'dub', { inMin: 60 + i * 300 }));
@@ -100,8 +111,10 @@ describe('the ride lifecycle', () => {
     const matchId = av.match!.id;
     // Before both accept, the partner's pickup is approximate and has no coordinates.
     const partnerStop = av.match!.plan.route.find((s) => s.partner && !s.you)!;
-    expect(partnerStop.label).toMatch(/^Near /);
+    expect(partnerStop.label).toBe('Trinity College area');
     expect(partnerStop.lat).toBeNull();
+    // Both are going to the airport, so the shared drop-off is simply each person's own destination.
+    for (const view of [av, await get(h, ben, b.id)]) expect(view.match!.plan.route.at(-1)!.label).toBe('Dublin Airport T1 (taxi rank)');
     expect(av.match!.plan.you.savings).toBeGreaterThan(0);
     expect(av.match!.plan.you.share + av.match!.plan.partner.share).toBe(av.match!.plan.fare);
     expect(h.push.sent.some((m) => m.to === 'ExponentPushToken[Ana]' && /found someone/.test(m.title))).toBe(false);
@@ -234,6 +247,80 @@ describe('the ride lifecycle', () => {
     expect(bv.match?.cancelledByPartner).toBe(true);
   });
 
+  test('a shared meeting point stays hidden from the rider who walks to it until both accept', async () => {
+    const ana = await rider(h, 'Ana');
+    const ben = await rider(h, 'Ben');
+    const a = await post(h, ana, trip('dub', 'stephens-green'));
+    const b = await post(h, ben, trip('dub-t2', 'trinity'));
+    expect(b.status).toBe('proposed');
+    const shared = async (r: typeof ana, id: string) => (await get(h, r, id)).match!.plan.route.find((s) => s.kind === 'pickup' && s.you && s.partner)!;
+    const stops = [await shared(ana, a.id), await shared(ben, b.id)];
+    const hidden = stops.filter((s) => s.lat === null);
+    expect(hidden).toHaveLength(1);
+    expect(hidden[0]!.label).toMatch(/^Meeting point, about \d+ min walk$/);
+  });
+
+  test('once the pickup time has passed, a confirmed ride stays charged', async () => {
+    const ana = await rider(h, 'Ana');
+    const ben = await rider(h, 'Ben');
+    const a = await post(h, ana, trip('stephens-green', 'dub'));
+    const b = await post(h, ben, trip('trinity', 'dub'));
+    await h.call('POST', `/v1/matches/${b.match!.id}/respond`, { token: ana.token, body: { accept: true } });
+    await h.call('POST', `/v1/matches/${b.match!.id}/respond`, { token: ben.token, body: { accept: true } });
+    await h.runJobs();
+    h.clock.now = Date.parse((await get(h, ana, a.id)).match!.plan.startAt) + MIN;
+    await refresh(h, ana);
+    const cancel = await h.call('POST', `/v1/trips/${a.id}/cancel`, { token: ana.token });
+    expect(cancel.json.error.code).toBe('pickup_passed');
+    // Blocking still works, but after the ride it doesn't undo the fees.
+    expect((await h.call('POST', `/v1/matches/${b.match!.id}/block`, { token: ana.token })).status).toBe(200);
+    await h.runJobs();
+    expect(await paymentStatus(a.payment!.id)).toBe('captured');
+    expect(await paymentStatus(b.payment!.id)).toBe('captured');
+  });
+
+  test('a ride nobody settles closes itself six hours after the last drop-off', async () => {
+    const ana = await rider(h, 'Ana');
+    const ben = await rider(h, 'Ben');
+    const a = await post(h, ana, trip('stephens-green', 'dub'));
+    const b = await post(h, ben, trip('trinity', 'dub'));
+    await h.call('POST', `/v1/matches/${b.match!.id}/respond`, { token: ana.token, body: { accept: true } });
+    await h.call('POST', `/v1/matches/${b.match!.id}/respond`, { token: ben.token, body: { accept: true } });
+    const lastStop = (await get(h, ana, a.id)).match!.plan.route.at(-1)!;
+    h.clock.now = Date.parse(lastStop.at) + 6 * 60 * MIN - MIN;
+    await h.rides.sweep();
+    const statuses = async () => (await db.query('SELECT status FROM trips WHERE id = ANY($1) ORDER BY status', [[a.id, b.id]])).rows.map((r) => r.status);
+    expect(await statuses()).toEqual(['confirmed', 'confirmed']);
+    h.advance(2 * MIN);
+    await h.rides.sweep();
+    expect(await statuses()).toEqual(['completed', 'completed']);
+    expect((await db.query('SELECT rides_completed FROM users WHERE id = $1', [ana.userId])).rows[0].rides_completed).toBe(1);
+  });
+
+  test('releasing a hold that was in fact captured refunds it instead', async () => {
+    const ana = await rider(h, 'Ana');
+    const a = await post(h, ana, trip('stephens-green', 'dub'));
+    // A capture that reached Stripe but was never recorded here.
+    const ref = (await db.query('SELECT provider_ref FROM payments WHERE id = $1', [a.payment!.id])).rows[0].provider_ref;
+    await h.gateway.capture(ref);
+    await h.call('POST', `/v1/trips/${a.id}/cancel`, { token: ana.token });
+    await h.runJobs();
+    expect(await paymentStatus(a.payment!.id)).toBe('refunded');
+    expect(h.gateway.calls.map((c) => c.op)).toEqual(['authorize', 'capture', 'refund']);
+  });
+
+  test('a capture reported after the hold was released is refunded', async () => {
+    const ana = await rider(h, 'Ana');
+    const a = await post(h, ana, trip('stephens-green', 'dub'));
+    await h.call('POST', `/v1/trips/${a.id}/cancel`, { token: ana.token });
+    await h.runJobs();
+    expect(await paymentStatus(a.payment!.id)).toBe('released');
+    const ref = (await db.query('SELECT provider_ref FROM payments WHERE id = $1', [a.payment!.id])).rows[0].provider_ref;
+    await handleGatewayEvent(h.deps, h.rides, { id: 'evt_late', type: 'payment.captured', ref });
+    await h.runJobs();
+    expect(await paymentStatus(a.payment!.id)).toBe('refunded');
+  });
+
   test('a partner cancelling before captures run releases instead of refunding', async () => {
     const ana = await rider(h, 'Ana');
     const ben = await rider(h, 'Ben');
@@ -255,7 +342,7 @@ describe('the ride lifecycle', () => {
 
 describe('matching under load', () => {
   test('concurrent posts never put one trip in two matches', async () => {
-    const riders = await Promise.all(Array.from({ length: 12 }, (_, i) => rider(h, `R${i}`)));
+    const riders = await Promise.all(Array.from({ length: 12 }, (_, i) => rider(h, `Rider ${'ABCDEFGHIJKL'[i]}`)));
     const places = ['stephens-green', 'trinity', 'temple-bar', 'grand-canal'];
     await Promise.all(riders.map((r, i) => post(h, r, trip(places[i % places.length]!, 'dub', { inMin: 60 + (i % 3) * 5 }))));
     const { rows } = await db.query<{ trip_a: string; trip_b: string }>("SELECT trip_a, trip_b FROM matches WHERE status = 'proposed'");
@@ -298,6 +385,20 @@ describe('safety', () => {
     expect((await h.call('POST', `/v1/matches/${matchId}/messages`, { token: ben.token, body: { text: 'hello?' } })).status).toBe(409);
     const reports = await db.query('SELECT reason, reported_id FROM reports');
     expect(reports.rows).toEqual([{ reason: 'harassment', reported_id: ben.userId }]);
+  });
+
+  test('after a declined proposal, the same two people are not paired again for a day', async () => {
+    const ana = await rider(h, 'Ana');
+    const ben = await rider(h, 'Ben');
+    await post(h, ana, trip('stephens-green', 'dub'));
+    const b = await post(h, ben, trip('trinity', 'dub'));
+    await h.call('POST', `/v1/matches/${b.match!.id}/respond`, { token: ana.token, body: { accept: false } });
+    await h.call('POST', `/v1/trips/${b.id}/cancel`, { token: ben.token });
+    // Reposting doesn't get Ben a fresh look at Ana's trip.
+    const b2 = await post(h, ben, trip('trinity', 'dub', { inMin: 65 }));
+    expect(b2.status).toBe('searching');
+    const cara = await rider(h, 'Cara');
+    expect((await post(h, cara, trip('temple-bar', 'dub'))).status).toBe('proposed');
   });
 
   test("riders can't see or act on other people's trips", async () => {

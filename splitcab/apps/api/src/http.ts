@@ -1,3 +1,4 @@
+import { isIPv6 } from 'node:net';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z, ZodError } from 'zod';
 import type { Deps } from './deps';
@@ -23,6 +24,24 @@ export function authenticate(deps: Deps) {
     if (!rowCount) throw unauthorized();
     req.userId = userId;
   };
+}
+
+// Rate limits count per client. An IPv6 client usually controls a whole /64, so it counts as one.
+export function rateLimitKey(ip: string): string {
+  const addr = ip.split('%')[0]!;
+  if (!isIPv6(addr)) return addr;
+  const mapped = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/i.exec(addr);
+  if (mapped) return mapped[1]!;
+  const [head = '', tail = ''] = addr.split('::');
+  const left = head ? head.split(':') : [];
+  const right = tail ? tail.split(':') : [];
+  // A trailing dotted IPv4 part takes two groups.
+  const width = (groups: string[]) => groups.reduce((n, g) => n + (g.includes('.') ? 2 : 1), 0);
+  const groups = addr.includes('::') ? [...left, ...Array<string>(8 - width(left) - width(right)).fill('0'), ...right] : left;
+  return `${groups
+    .slice(0, 4)
+    .map((g) => parseInt(g, 16).toString(16))
+    .join(':')}::/64`;
 }
 
 export function registerErrorHandler(app: FastifyInstance) {

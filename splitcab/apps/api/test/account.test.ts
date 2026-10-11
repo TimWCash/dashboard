@@ -38,6 +38,27 @@ describe('sign in', () => {
     expect(bad.json.error.code).toBe('invalid_code');
   });
 
+  test('only Irish and UK numbers can sign in', async () => {
+    const fr = await h.call('POST', '/v1/auth/otp/start', { body: { phone: '+33 6 12 34 56 78' } });
+    expect(fr.json.error.code).toBe('unsupported_country');
+    // GB covers every +44 number, including the Channel Islands and the Isle of Man.
+    for (const phone of ['+44 7400 123456', '+44 7911 123456']) expect((await h.call('POST', '/v1/auth/otp/start', { body: { phone } })).status, phone).toBe(200);
+  });
+
+  test('too many wrong codes lock the number for an hour, across new codes', async () => {
+    const phone = '0873333333';
+    let code = '';
+    for (let round = 0; round < 2; round++) {
+      code = (await h.call('POST', '/v1/auth/otp/start', { body: { phone } })).json.devCode;
+      for (let i = 0; i < 5; i++) expect((await h.call('POST', '/v1/auth/otp/verify', { body: { phone, code: '000000' } })).status).toBe(400);
+    }
+    code = (await h.call('POST', '/v1/auth/otp/start', { body: { phone } })).json.devCode;
+    expect((await h.call('POST', '/v1/auth/otp/verify', { body: { phone, code } })).status).toBe(429);
+    h.advance(61 * MIN);
+    code = (await h.call('POST', '/v1/auth/otp/start', { body: { phone } })).json.devCode;
+    expect((await h.call('POST', '/v1/auth/otp/verify', { body: { phone, code } })).status).toBe(200);
+  });
+
   test('code requests are throttled per number', async () => {
     for (let i = 0; i < 5; i++) expect((await h.call('POST', '/v1/auth/otp/start', { body: { phone: '0872222222' } })).status).toBe(200);
     expect((await h.call('POST', '/v1/auth/otp/start', { body: { phone: '0872222222' } })).status).toBe(429);
@@ -55,6 +76,12 @@ describe('sign in', () => {
     expect((await h.call('POST', '/v1/auth/refresh', { body: { refreshToken: r1.json.refreshToken } })).status).toBe(401);
   });
 
+  test('signing out ends the session', async () => {
+    const ana = await rider(h, 'Ana');
+    expect((await h.call('POST', '/v1/auth/logout', { token: ana.token, body: { refreshToken: ana.refreshToken } })).status).toBe(204);
+    expect((await h.call('POST', '/v1/auth/refresh', { body: { refreshToken: ana.refreshToken } })).status).toBe(401);
+  });
+
   test('requests without a valid token are refused', async () => {
     expect((await h.call('GET', '/v1/me')).status).toBe(401);
     expect((await h.call('GET', '/v1/me', { token: 'not-a-jwt' })).status).toBe(401);
@@ -68,6 +95,13 @@ describe('profile and account', () => {
     expect((await h.call('PATCH', '/v1/me', { token: ana.token, body: { pushToken: 'javascript:alert(1)' } })).status).toBe(400);
     const ok = await h.call('PATCH', '/v1/me', { token: ana.token, body: { firstName: 'Áine' } });
     expect(ok.json).toMatchObject({ firstName: 'Áine', profileComplete: true });
+    // The name is shown to strangers: real names pass, links, numbers and abuse don't.
+    for (const firstName of ["Seán O'Brien", 'Mary-Kate', 'Zoë']) {
+      expect((await h.call('PATCH', '/v1/me', { token: ana.token, body: { firstName } })).status, firstName).toBe(200);
+    }
+    for (const firstName of ['www.pay-me.ie', 'Call 0871234567', 'Bitch']) {
+      expect((await h.call('PATCH', '/v1/me', { token: ana.token, body: { firstName } })).status, firstName).toBe(400);
+    }
   });
 
   test('saving a card in test mode records a test card', async () => {
@@ -98,6 +132,25 @@ describe('profile and account', () => {
     const again = await h.call('POST', '/v1/auth/otp/start', { body: { phone: ana.phone } });
     const verify = await h.call('POST', '/v1/auth/otp/verify', { body: { phone: ana.phone, code: again.json.devCode } });
     expect(verify.json.user.id).not.toBe(ana.userId);
+  });
+});
+
+describe('deleting an account', () => {
+  test("blurs where that person travelled, including in a former partner's ride", async () => {
+    const ana = await rider(h, 'Ana');
+    const ben = await rider(h, 'Ben');
+    const a = await post(h, ana, trip('stephens-green', 'dub'));
+    const b = await post(h, ben, trip('trinity', 'dub'));
+    expect((await h.call('DELETE', '/v1/me', { token: ana.token })).status).toBe(204);
+
+    const row = (await db.query('SELECT origin_label, dest_label, origin_lat, origin_lng FROM trips WHERE id = $1', [a.id])).rows[0];
+    expect([row.origin_label, row.dest_label]).toEqual(['Removed', 'Removed']);
+    for (const n of [row.origin_lat, row.origin_lng]) expect(Math.abs(n * 100 - Math.round(n * 100))).toBeLessThan(1e-6);
+
+    const plan = (await db.query('SELECT plan FROM matches WHERE id = $1', [b.match!.id])).rows[0].plan;
+    const stop = (tripId: string) => plan.route.find((s: { tripIds: string[] }) => s.tripIds[0] === tripId);
+    expect(stop(a.id).label).toBe('Removed');
+    expect(stop(b.id).label).toBe('Trinity College');
   });
 });
 
@@ -189,6 +242,16 @@ describe('store review account', () => {
     await rh.runJobs();
     const done = await rh.call('POST', `/v1/matches/${posted.json.match.id}/complete`, { token, body: { actualFare: 3000 } });
     expect(done.json.status).toBe('completed');
+  });
+
+  test('the review account stays one even after REVIEW_PHONE changes', async () => {
+    const rh = await harness(db, { env });
+    await reviewer(rh);
+    // A later deploy drops the review settings; the same number signs in with a normal code.
+    const start = await h.call('POST', '/v1/auth/otp/start', { body: { phone: env.REVIEW_PHONE } });
+    const verify = await h.call('POST', '/v1/auth/otp/verify', { body: { phone: env.REVIEW_PHONE, code: start.json.devCode } });
+    const { rows } = await db.query('SELECT is_reviewer FROM users WHERE id = $1', [verify.json.user.id]);
+    expect(rows[0].is_reviewer).toBe(true);
   });
 
   test('the review account and demo travellers never match real people', async () => {
