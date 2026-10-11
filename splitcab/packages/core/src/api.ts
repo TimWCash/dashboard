@@ -45,12 +45,15 @@ export interface MeView {
   paymentMethod: PaymentMethodView | null;
   ratingAvg: number | null;
   ridesCompleted: number;
+  // Revolut username, so travel partners can pay you back in one tap.
+  revtag: string | null;
 }
 
 export interface UpdateMeRequest {
   firstName?: string;
   acceptTerms?: true;
   pushToken?: string | null;
+  revtag?: string | null;
 }
 
 export interface AppConfig {
@@ -143,6 +146,10 @@ export interface SettlementView {
   youOwe: number;
   owedToYou: number;
   at: ISODate;
+  // When the person who owed money said they'd paid. SplitCab doesn't handle this money itself.
+  paidAt: ISODate | null;
+  // The booker's Revtag, shown only to the person who owes them.
+  bookerRevtag: string | null;
 }
 
 export interface MatchView {

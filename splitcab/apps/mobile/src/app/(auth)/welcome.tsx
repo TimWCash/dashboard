@@ -9,7 +9,7 @@ import { space, useTheme } from '../../lib/theme';
 const STEPS = [
   ['Post your trip', 'Pickup, destination, and roughly when you want to leave or arrive.'],
   ['Get matched', "We pair you with someone nearby heading your way and show exactly what you'll each pay."],
-  ['Share one taxi', 'One of you books the taxi (Uber, FREENOW or a rank). After the ride, the other pays their share to the booker by Revolut or cash.'],
+  ['Share one taxi', 'One of you books the taxi (Uber, FREENOW or a rank). After the ride, the other pays the booker back in one tap with Revolut, or in cash.'],
 ] as const;
 
 export default function Welcome() {

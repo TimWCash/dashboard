@@ -3,16 +3,19 @@ import * as Clipboard from 'expo-clipboard';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Linking, Pressable, View } from 'react-native';
+import { QrCode } from '../../../components/QrCode';
 import { BookingLine, Countdown, MatchFacts, PartnerRow, PriceBreakdown, Pulse, RouteTimeline, SafetyButton, TripHeader } from '../../../components/ride';
 import { AppText, Button, Card, Divider, Field, Icon, Note, Row, Screen } from '../../../components/ui';
 import { ApiError } from '../../../lib/api';
+import { useAuth } from '../../../lib/auth';
 import { bookingOptions } from '../../../lib/booking';
 import { confirmDestructive } from '../../../lib/confirm';
 import { clock, money, parseEuro } from '../../../lib/format';
 import { useCardPayments } from '../../../lib/payments';
 import { updateDraft } from '../../../lib/planDraft';
 import { pushStatus, registerForPush, type PushStatus } from '../../../lib/push';
-import { useCancelTrip, useComplete, useConfig, useConfirmHold, useRate, useRespond, useTrip } from '../../../lib/queries';
+import { useCancelTrip, useComplete, useConfig, useConfirmHold, useMarkPaid, useRate, useRespond, useTrip } from '../../../lib/queries';
+import { revolutLink } from '../../../lib/revolut';
 import { space, useTheme } from '../../../lib/theme';
 
 const chatPath = (match: MatchView, trip: TripView, draft?: string) =>
@@ -345,6 +348,94 @@ function Confirmed({ trip, match, onError }: Section & { match: MatchView }) {
   );
 }
 
+// The person who didn't book pays the booker back directly. SplitCab never holds this money.
+function PayBack({ match, onError }: { match: MatchView; onError: (e: unknown) => void }) {
+  const markPaid = useMarkPaid();
+  const [copied, setCopied] = useState(false);
+  const s = match.settlement!;
+  const name = match.partner.firstName;
+  const amount = money(s.youOwe);
+  const revtag = s.bookerRevtag;
+
+  async function copyAmount() {
+    await Clipboard.setStringAsync((s.youOwe / 100).toFixed(2));
+    setCopied(true);
+  }
+
+  return (
+    <Card>
+      <AppText variant="title">{s.paidAt ? `You paid ${name} ${amount}` : `You owe ${name} ${amount}`}</AppText>
+      <AppText variant="small" muted>
+        {`That's your share of the ${money(s.actualFare)} fare.`}
+      </AppText>
+      {s.paidAt ? (
+        <Note tone="good">{`We've let ${name} know. Thanks!`}</Note>
+      ) : (
+        <>
+          {revtag ? (
+            <>
+              <Button title={`Pay ${amount} with Revolut`} icon="open-outline" onPress={() => Linking.openURL(revolutLink(revtag)).catch(onError)} />
+              <AppText variant="small" muted>
+                {`Opens @${revtag}'s Revolut page. Enter ${amount} and pay with Revolut or any card.`}
+              </AppText>
+              <Button title={copied ? 'Amount copied' : 'Copy the amount'} variant="link" onPress={copyAmount} />
+            </>
+          ) : (
+            <AppText variant="small" muted>
+              {`Pay ${name} in cash, or ask for their Revtag in chat to pay by Revolut.`}
+            </AppText>
+          )}
+          <Button title={`I've paid ${name}`} variant="ghost" icon="checkmark-circle-outline" loading={markPaid.isPending} onPress={() => markPaid.mutate(match.id, { onError })} />
+        </>
+      )}
+    </Card>
+  );
+}
+
+// The booker gets paid back: a QR code of their Revolut page to scan in person, or a reminder.
+function GetPaidBack({ trip, match }: { trip: TripView; match: MatchView }) {
+  const { me } = useAuth();
+  const [showQr, setShowQr] = useState(false);
+  const s = match.settlement!;
+  const name = match.partner.firstName;
+  const amount = money(s.owedToYou);
+
+  return (
+    <Card>
+      <AppText variant="title">{s.paidAt ? `${name} says they've paid you ${amount}` : `${name} owes you ${amount}`}</AppText>
+      <AppText variant="small" muted>
+        {`That's their share of the ${money(s.actualFare)} fare.`}
+      </AppText>
+      {s.paidAt ? (
+        <Note tone="good">Check your Revolut or bank app to make sure it arrived.</Note>
+      ) : (
+        <>
+          {me?.revtag ? (
+            <>
+              {showQr ? (
+                <View style={{ alignItems: 'center', gap: space.sm }}>
+                  <QrCode value={revolutLink(me.revtag)} label={`QR code to pay @${me.revtag} on Revolut`} />
+                  <AppText variant="small" muted style={{ textAlign: 'center' }}>
+                    {`${name} scans this with their phone camera and pays you ${amount}.`}
+                  </AppText>
+                </View>
+              ) : (
+                <AppText variant="small" muted>
+                  {`${name} can pay you on Revolut in one tap from their app.`}
+                </AppText>
+              )}
+              <Button title={showQr ? 'Hide the QR code' : 'Show my Revolut QR code'} variant={showQr ? 'link' : 'dark'} icon={showQr ? undefined : 'qr-code-outline'} onPress={() => setShowQr(!showQr)} />
+            </>
+          ) : (
+            <Button title="Add your Revtag to get paid by Revolut" variant="dark" icon="cash-outline" onPress={() => router.push('/revtag')} />
+          )}
+          <Button title={`Remind ${name}`} variant="ghost" icon="chatbubble-ellipses-outline" onPress={() => router.push(chatPath(match, trip, `Hi ${name}, your share of the taxi is ${amount}. Thanks!`))} />
+        </>
+      )}
+    </Card>
+  );
+}
+
 function Completed({ trip, match, onError }: Section & { match: MatchView }) {
   const { c } = useTheme();
   const rate = useRate();
@@ -361,17 +452,7 @@ function Completed({ trip, match, onError }: Section & { match: MatchView }) {
 
   return (
     <>
-      {s ? (
-        <Card>
-          <AppText variant="title">{match.youBook ? `${name} owes you ${money(s.owedToYou)}` : `You owe ${name} ${money(s.youOwe)}`}</AppText>
-          <AppText variant="small" muted>
-            {`That's ${match.youBook ? 'their' : 'your'} share of the ${money(s.actualFare)} fare. Pay by Revolut, bank transfer or cash.`}
-          </AppText>
-          {match.youBook && s.owedToYou > 0 ? (
-            <Button title={`Remind ${name}`} variant="ghost" icon="chatbubble-ellipses-outline" onPress={() => router.push(chatPath(match, trip, `Hi ${name}, your share of the taxi is ${money(s.owedToYou)}. Thanks!`))} />
-          ) : null}
-        </Card>
-      ) : null}
+      {s && (s.youOwe > 0 || s.owedToYou > 0) ? (match.youBook ? <GetPaidBack trip={trip} match={match} /> : <PayBack match={match} onError={onError} />) : null}
       {saved > 0 ? <Note tone="good">{`You saved about ${money(saved)} compared with taking a taxi alone.`}</Note> : null}
       <Card>
         <AppText variant="heading">{match.youRated || (stars && rate.isSuccess) ? 'Thanks for rating' : `How was sharing with ${name}?`}</AppText>

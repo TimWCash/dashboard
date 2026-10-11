@@ -10,6 +10,7 @@ Answers for **App Store Connect → App Privacy** and **Play Console → Data sa
 | First name | Profile | Shown to your matched travel partner | Yes | Yes, once matched |
 | Trip pickup and destination (precise) | Typed or "Use where I am now" | Matching and fare estimates | Yes | Approximate area when matched; exact stop once both accept |
 | Device location (precise) | Only when you tap "Use where I am now" | Fill in the pickup point; not stored except as the trip pickup | Yes | As above |
+| Revolut username (Revtag), optional | Account → Get paid back by Revolut | So a travel partner who owes you can pay you through your Revolut page | Yes | Only with a partner who owes you money, after the ride |
 | Payment card | Entered in Stripe's payment sheet | Match fee holds and charges. SplitCab stores only brand and last four digits | Yes | Never |
 | Purchase history | Match fee holds, charges, refunds | Wallet and accounting | Yes | Never |
 | Messages | Chat with a matched traveller | Coordinating the pickup; safety reviews | Yes | The matched traveller only |
@@ -30,6 +31,7 @@ Data linked to you (all with purpose **App Functionality** unless noted):
 |---|---|---|
 | Contact Info | Name | App Functionality |
 | Contact Info | Phone Number | App Functionality |
+| Contact Info | Other User Contact Info (Revolut username, optional) | App Functionality |
 | Location | Precise Location | App Functionality |
 | Financial Info | Payment Info | App Functionality |
 | Purchases | Purchase History | App Functionality |
@@ -50,6 +52,7 @@ Data not linked to you: **None.**
 | Personal info | Name | Yes | No | Required | App functionality, Account management |
 | Personal info | Phone number | Yes | No | Required | Account management, Fraud prevention, security and compliance |
 | Personal info | User IDs | Yes | No | Required | App functionality, Account management |
+| Personal info | Other info (Revolut username) | Yes | No | Optional | App functionality |
 | Location | Precise location | Yes | No | Required (trip stops) | App functionality |
 | Financial info | Payment info | Yes | No | Required | App functionality |
 | Financial info | Purchase history | Yes | No | Required | App functionality |
@@ -63,4 +66,4 @@ Data not linked to you: **None.**
 
 - Chat messages: deleted after 90 days (`purgeOldData` in the API).
 - Sign-in records: code requests after 1 day, expired sessions after 7 days.
-- Deleted accounts: name, phone, card details and push token erased immediately; trips and payment records kept in anonymised form for accounting and dispute handling.
+- Deleted accounts: name, phone, Revolut username, card details and push token erased immediately; trips and payment records kept in anonymised form for accounting and dispute handling.

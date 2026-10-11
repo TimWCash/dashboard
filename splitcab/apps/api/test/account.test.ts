@@ -104,6 +104,21 @@ describe('profile and account', () => {
     }
   });
 
+  test('a Revtag can be typed with an @ or pasted as a revolut.me link, and removed', async () => {
+    const ana = await rider(h, 'Ana', { card: false });
+    const set = (revtag: string | null) => h.call('PATCH', '/v1/me', { token: ana.token, body: { revtag } });
+    expect((await set('@AnaK92')).json.revtag).toBe('anak92');
+    expect((await set('https://revolut.me/anak92/')).json.revtag).toBe('anak92');
+    for (const bad of ['ab', 'ana k', 'ana.k', 'x'.repeat(17), 'www.pay-me.ie']) {
+      expect((await set(bad)).json.error?.code, bad).toBe('invalid_revtag');
+    }
+    expect((await set(null)).json.revtag).toBeNull();
+    await set('anak92');
+    expect((await h.call('GET', '/v1/me/export', { token: ana.token })).json.profile.revtag).toBe('anak92');
+    await h.call('DELETE', '/v1/me', { token: ana.token });
+    expect((await db.query('SELECT revtag FROM users WHERE id = $1', [ana.userId])).rows[0].revtag).toBeNull();
+  });
+
   test('saving a card in test mode records a test card', async () => {
     const ana = await rider(h, 'Ana');
     const me = await h.call('GET', '/v1/me', { token: ana.token });

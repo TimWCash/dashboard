@@ -556,6 +556,25 @@ export class RideService {
     });
   }
 
+  // The person who owes the booker says they've paid. The money goes between them directly (Revolut or cash);
+  // this just lets the booker know.
+  async markPaid(userId: string, matchId: string): Promise<string> {
+    return withTx(this.deps.db, async (tx) => {
+      const now = this.now();
+      const { match, mine, partner } = await this.memberMatch(tx, userId, matchId);
+      const s = match.settlement;
+      if (match.status !== 'completed' || !s) throw conflict('not_settled', 'The booker enters the meter total first.');
+      if (match.booker_trip_id === mine.id) throw forbidden("Your travel partner marks this when they've paid you.");
+      if (s.partnerOwes <= 0) throw conflict('nothing_owed', "You don't owe anything for this ride.");
+      if (!s.paidAt) {
+        await tx.query('UPDATE matches SET settlement = $2 WHERE id = $1', [match.id, { ...s, paidAt: now }]);
+        const names = await this.firstNames(tx, [mine.user_id]);
+        await notify(tx, now, partner.user_id, { kind: 'paid', partner: names.get(mine.user_id)!, amount: s.partnerOwes }, { tripId: partner.id });
+      }
+      return mine.id;
+    });
+  }
+
   async rate(userId: string, matchId: string, stars: number): Promise<string> {
     if (!Number.isInteger(stars) || stars < 1 || stars > 5) throw badRequest('invalid_rating', 'Choose between 1 and 5 stars.');
     return withTx(this.deps.db, async (tx) => {
@@ -617,7 +636,7 @@ export class RideService {
       for (const trip of active) await this.cancelLocked(tx, trip, now);
       await tx.query(
         `UPDATE users SET phone = NULL, first_name = NULL, push_token = NULL, payment_method_id = NULL,
-           payment_method_brand = NULL, payment_method_last4 = NULL, deleted_at = $2 WHERE id = $1`,
+           payment_method_brand = NULL, payment_method_last4 = NULL, revtag = NULL, deleted_at = $2 WHERE id = $1`,
         [userId, new Date(now)],
       );
       await tx.query('DELETE FROM refresh_tokens WHERE user_id = $1', [userId]);

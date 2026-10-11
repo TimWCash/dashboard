@@ -15,7 +15,8 @@ type Notice =
   | { kind: 'payment_failed' }
   | { kind: 'payment_action_required' }
   | { kind: 'new_message'; partner: string; text: string }
-  | { kind: 'settled'; partner: string; youOwe: number };
+  | { kind: 'settled'; partner: string; youOwe: number }
+  | { kind: 'paid'; partner: string; amount: number };
 
 function render(n: Notice): { title: string; body: string } {
   const fee = formatMoney(CONFIG.matchFee);
@@ -46,6 +47,8 @@ function render(n: Notice): { title: string; body: string } {
       return { title: n.partner, body: n.text.length > 120 ? `${n.text.slice(0, 117)}...` : n.text };
     case 'settled':
       return { title: 'Fare split', body: n.youOwe > 0 ? `You owe ${n.partner} ${formatMoney(n.youOwe)} for your share.` : `${n.partner} owes you their share.` };
+    case 'paid':
+      return { title: 'Paid', body: `${n.partner} says they've paid you ${formatMoney(n.amount)}.` };
   }
 }
 

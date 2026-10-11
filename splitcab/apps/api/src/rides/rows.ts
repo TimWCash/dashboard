@@ -19,6 +19,7 @@ export interface UserRow {
   deleted_at: Date | null;
   is_demo: boolean;
   is_reviewer: boolean;
+  revtag: string | null;
 }
 
 export interface TripRow {
@@ -48,6 +49,7 @@ export interface Settlement {
   partnerOwes: number;
   bookerShare: number;
   at: number;
+  paidAt?: number;
 }
 
 export interface MatchRow {

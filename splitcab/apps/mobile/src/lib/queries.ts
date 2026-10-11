@@ -73,6 +73,7 @@ export const useComplete = () =>
 export const useRate = () =>
   useTripMutation(({ matchId, stars }: { matchId: string; stars: number }) => api.post<TripView>(`/v1/matches/${matchId}/rating`, { stars }));
 export const useBlock = () => useTripMutation((matchId: string) => api.post<TripView>(`/v1/matches/${matchId}/block`));
+export const useMarkPaid = () => useTripMutation((matchId: string) => api.post<TripView>(`/v1/matches/${matchId}/paid`));
 
 export function useSendMessage(matchId: string) {
   const qc = useQueryClient();

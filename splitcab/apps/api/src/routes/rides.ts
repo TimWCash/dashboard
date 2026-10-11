@@ -69,6 +69,11 @@ export function rideRoutes(app: FastifyInstance, deps: Deps, rides: RideService)
     return view(req.userId, await rides.complete(req.userId, id, actualFare));
   });
 
+  app.post('/v1/matches/:id/paid', auth, async (req): Promise<TripView> => {
+    const { id } = parse(uuidParam, req.params);
+    return view(req.userId, await rides.markPaid(req.userId, id));
+  });
+
   app.post('/v1/matches/:id/rating', auth, async (req): Promise<TripView> => {
     const { id } = parse(uuidParam, req.params);
     const { stars } = parse(z.object({ stars: z.number().int().min(1).max(5) }), req.body);

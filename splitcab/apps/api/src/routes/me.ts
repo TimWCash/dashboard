@@ -3,8 +3,10 @@ import { CONFIG } from '@splitcab/core';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import type { Deps } from '../deps';
+import { badRequest } from '../errors';
 import { authenticate, parse } from '../http';
 import { createModerator } from '../moderation';
+import { normalizeRevtag } from '../revtag';
 import { getUser, type UserRow } from '../rides/rows';
 import type { RideService } from '../rides/service';
 import { listPaymentViews, meView } from '../rides/views';
@@ -43,9 +45,13 @@ export function meRoutes(app: FastifyInstance, deps: Deps, rides: RideService) {
         acceptTerms: z.literal(true).optional(),
         // Expo push tokens look like ExponentPushToken[xxxx].
         pushToken: z.string().regex(/^Expo(nent)?PushToken\[[\w-]+\]$/).nullable().optional(),
+        revtag: z.string().max(80).nullable().optional(),
       }),
       req.body,
     );
+    // Shown to travel partners who owe you money, so it goes through the same filter as names.
+    const revtag = body.revtag ? normalizeRevtag(body.revtag) : null;
+    if (revtag && !moderate(revtag).ok) throw badRequest('invalid_revtag', 'That Revtag can\'t be used here.');
     await getUser(deps.db, req.userId);
     const now = new Date(deps.clock());
     if (body.pushToken) {
@@ -56,9 +62,10 @@ export function meRoutes(app: FastifyInstance, deps: Deps, rides: RideService) {
       `UPDATE users SET
          first_name = COALESCE($2, first_name),
          terms_accepted_at = CASE WHEN $3 AND terms_accepted_at IS NULL THEN $4 ELSE terms_accepted_at END,
-         push_token = CASE WHEN $5 THEN $6 ELSE push_token END
+         push_token = CASE WHEN $5 THEN $6 ELSE push_token END,
+         revtag = CASE WHEN $7 THEN $8 ELSE revtag END
        WHERE id = $1 RETURNING *`,
-      [req.userId, body.firstName ?? null, body.acceptTerms === true, now, body.pushToken !== undefined, body.pushToken ?? null],
+      [req.userId, body.firstName ?? null, body.acceptTerms === true, now, body.pushToken !== undefined, body.pushToken ?? null, body.revtag !== undefined, revtag],
     );
     return meView(rows[0]!);
   });
@@ -80,6 +87,7 @@ export function meRoutes(app: FastifyInstance, deps: Deps, rides: RideService) {
         termsAcceptedAt: user.terms_accepted_at,
         createdAt: user.created_at,
         card: user.payment_method_last4 ? `${user.payment_method_brand} ending ${user.payment_method_last4}` : null,
+        revtag: user.revtag,
         ridesCompleted: user.rides_completed,
       },
       trips: await q(

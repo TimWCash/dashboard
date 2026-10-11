@@ -12,7 +12,7 @@ export default function HowItWorks() {
     ['Get matched', "We pair you with someone nearby heading your way and show exactly what you'll each pay before you say yes."],
     ['The match fee', `We place a ${fee} hold on your card when you post. It's only charged if you're matched and you both say yes. Otherwise it's released, though your bank may show it as pending for a few days.`],
     ['Booking the taxi', 'The person picked up first books the taxi in Uber, FREENOW or at a rank. The app tells you who books.'],
-    ['Paying your share', 'After the ride, the booker enters the meter total. Each share changes in proportion, and the other person pays their share to the booker by Revolut, bank transfer or cash.'],
+    ['Paying your share', "After the ride, the booker enters the meter total and each share changes in proportion. The other person pays the booker back: in one tap on Revolut if the booker has added their Revtag (no Revolut account needed, a card works), by scanning the booker's QR code, or in cash."],
     ['If plans change', "If your match cancels after you've both said yes, your fee is refunded and we look again. If you cancel, your fee isn't refunded."],
     ['Safety', 'Your exact pickup point is only shared once you both say yes. Tap Safety on any trip to report or block someone. In an emergency, call 112.'],
   ];

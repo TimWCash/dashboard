@@ -168,6 +168,44 @@ describe('the ride lifecycle', () => {
     expect(wallet.json[0].history.map((e: { status: string }) => e.status)).toEqual(['authorized', 'captured']);
   });
 
+  test('paying back: the person who owes gets the booker\'s Revtag, and saying they\'ve paid tells the booker', async () => {
+    const ana = await rider(h, 'Ana');
+    const ben = await rider(h, 'Ben');
+    const a = await post(h, ana, trip('stephens-green', 'dub'));
+    const b = await post(h, ben, trip('trinity', 'dub'));
+    const matchId = b.match!.id;
+    await h.call('POST', `/v1/matches/${matchId}/respond`, { token: ana.token, body: { accept: true } });
+    await h.call('POST', `/v1/matches/${matchId}/respond`, { token: ben.token, body: { accept: true } });
+    await h.runJobs();
+    const booker = (await get(h, ana, a.id)).match!.youBook ? ana : ben;
+    const payer = booker === ana ? ben : ana;
+    const payerTrip = booker === ana ? b.id : a.id;
+    await h.call('PATCH', '/v1/me', { token: booker.token, body: { revtag: '@Booker123' } });
+
+    // Nothing to pay before the fare is in.
+    expect((await h.call('POST', `/v1/matches/${matchId}/paid`, { token: payer.token })).json.error.code).toBe('not_settled');
+    h.clock.now = Date.parse((await get(h, booker, booker === ana ? a.id : b.id)).match!.plan.startAt) + 60 * MIN;
+    await refresh(h, ana);
+    await refresh(h, ben);
+    await h.call('POST', `/v1/matches/${matchId}/complete`, { token: booker.token, body: { actualFare: 3000 } });
+
+    const owes = (await get(h, payer, payerTrip)).match!.settlement!;
+    expect(owes).toMatchObject({ bookerRevtag: 'booker123', paidAt: null });
+    expect(owes.youOwe).toBeGreaterThan(0);
+    const bookerView = (await h.call('GET', '/v1/trips?scope=past', { token: booker.token })).json[0].match.settlement;
+    expect(bookerView.bookerRevtag).toBeNull();
+
+    expect((await h.call('POST', `/v1/matches/${matchId}/paid`, { token: booker.token })).status).toBe(403);
+    const paid = await h.call('POST', `/v1/matches/${matchId}/paid`, { token: payer.token });
+    expect(paid.json.match.settlement.paidAt).not.toBeNull();
+    // Saying so twice doesn't notify twice.
+    await h.call('POST', `/v1/matches/${matchId}/paid`, { token: payer.token });
+    await h.runJobs();
+    const name = booker === ana ? 'Ana' : 'Ben';
+    expect(h.push.sent.filter((m) => m.title === 'Paid' && m.to === `ExponentPushToken[${name}]`)).toHaveLength(1);
+    expect((await h.call('GET', '/v1/trips?scope=past', { token: booker.token })).json[0].match.settlement.paidAt).not.toBeNull();
+  });
+
   test('declining sends both back to searching and they are never re-paired', async () => {
     const ana = await rider(h, 'Ana');
     const ben = await rider(h, 'Ben');

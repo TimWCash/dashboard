@@ -20,6 +20,7 @@ export function meView(u: UserRow): MeView {
     paymentMethod: u.payment_method_id ? { brand: u.payment_method_brand ?? 'card', last4: u.payment_method_last4 ?? '' } : null,
     ratingAvg: ratingAvg(u),
     ridesCompleted: u.rides_completed,
+    revtag: u.revtag,
   };
 }
 
@@ -50,9 +51,11 @@ function areaLabel(point: LatLng, from: LatLng): string {
 
 async function matchView(q: Queryable, trip: TripRow, m: MatchRow): Promise<MatchView> {
   const otherId = partnerTripId(m, trip.id);
-  const { rows } = await q.query<TripRow & { u_first_name: string | null; u_rating_sum: number; u_rating_count: number; u_rides: number; u_deleted: Date | null }>(
+  const { rows } = await q.query<
+    TripRow & { u_first_name: string | null; u_rating_sum: number; u_rating_count: number; u_rides: number; u_deleted: Date | null; u_revtag: string | null }
+  >(
     `SELECT t.*, u.first_name AS u_first_name, u.rating_sum AS u_rating_sum, u.rating_count AS u_rating_count,
-            u.rides_completed AS u_rides, u.deleted_at AS u_deleted
+            u.rides_completed AS u_rides, u.deleted_at AS u_deleted, u.revtag AS u_revtag
      FROM trips t JOIN users u ON u.id = t.user_id WHERE t.id = $1`,
     [otherId],
   );
@@ -137,7 +140,14 @@ async function matchView(q: Queryable, trip: TripRow, m: MatchRow): Promise<Matc
       }),
     },
     settlement: s
-      ? { actualFare: s.actualFare, youOwe: youBook ? 0 : s.partnerOwes, owedToYou: youBook ? s.partnerOwes : 0, at: iso(s.at) }
+      ? {
+          actualFare: s.actualFare,
+          youOwe: youBook ? 0 : s.partnerOwes,
+          owedToYou: youBook ? s.partnerOwes : 0,
+          at: iso(s.at),
+          paidAt: s.paidAt ? iso(s.paidAt) : null,
+          bookerRevtag: !youBook && s.partnerOwes > 0 ? other.u_revtag : null,
+        }
       : null,
   };
 }

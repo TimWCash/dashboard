@@ -134,6 +134,7 @@ export default function Account() {
             }
           }}
         />
+        <LinkRow icon="cash-outline" label="Get paid back by Revolut" detail={me?.revtag ? `@${me.revtag}` : 'Add'} onPress={() => router.push('/revtag')} />
         <LinkRow icon="receipt-outline" label="Payments" onPress={() => router.push('/payments')} />
         {push && push !== 'unsupported' ? (
           <LinkRow icon="notifications-outline" label="Match notifications" detail={push === 'on' ? 'On' : 'Off'} onPress={notifications} />
