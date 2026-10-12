@@ -58,6 +58,13 @@ const schema = z.object({
   DEMO_OPERATOR: z.string().trim().min(1).max(120).optional(),
   // Extra words the chat filter rejects, comma-separated.
   BLOCKED_TERMS: z.string().default(''),
+  // Where every safety report is announced the moment it's filed: a Slack or Discord webhook, or any service that
+  // turns a webhook into an email or phone notification. Without it, reports only reach the log.
+  REPORT_ALERT_WEBHOOK_URL: z
+    .string()
+    .url()
+    .refine((u) => u.startsWith('https://'), 'REPORT_ALERT_WEBHOOK_URL must be an https:// URL')
+    .optional(),
 
   PAYMENTS_PROVIDER: z.enum(['stripe', 'test']).default('test'),
   STRIPE_SECRET_KEY: z.string().optional(),
@@ -76,7 +83,7 @@ const schema = z.object({
   TERMS_URL: z.string().url().default('https://splitcab.ie/terms'),
   // Version of the Terms of Service and Privacy Policy. Change it when either changes, and everyone is asked to
   // agree to the new version before their next trip. Their agreement is recorded with the version.
-  TERMS_VERSION: z.string().min(1).max(40).default('2026-10-11'),
+  TERMS_VERSION: z.string().min(1).max(40).default('2026-10-12'),
   PRIVACY_URL: z.string().url().default('https://splitcab.ie/privacy'),
   SUPPORT_EMAIL: z.string().email().default('support@splitcab.ie'),
 });
@@ -120,6 +127,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     if (c.PAYMENTS_PROVIDER !== 'stripe') problems.push('Production requires PAYMENTS_PROVIDER=stripe');
     if (c.PUSH_PROVIDER !== 'expo') problems.push('Production requires PUSH_PROVIDER=expo');
     if (c.STRIPE_SECRET_KEY?.startsWith('sk_test_')) problems.push('Production is using a Stripe test key');
+    // Someone has to hear about a safety report as soon as it's made.
+    if (!c.REPORT_ALERT_WEBHOOK_URL) problems.push('Production requires REPORT_ALERT_WEBHOOK_URL');
   }
   if (c.NODE_ENV === 'production') {
     // Guessing wrong either way breaks rate limiting: too few hops and every request shares the load balancer's

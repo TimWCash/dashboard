@@ -1,4 +1,5 @@
 import type { FastifyBaseLogger } from 'fastify';
+import type { AlertSender } from './providers/alerts';
 import type { AppConfig } from './config';
 import type { Db } from './db';
 import type { OtpProvider } from './providers/otp';
@@ -18,4 +19,5 @@ export interface Deps {
   payments: PaymentGateway;
   push: PushSender;
   places: PlacesProvider;
+  alerts: AlertSender;
 }

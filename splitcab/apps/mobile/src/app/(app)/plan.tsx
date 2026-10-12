@@ -1,4 +1,4 @@
-import { CONFIG, formatMoney, soloWindow, type TripInput } from '@splitcab/core';
+import { CONFIG, bestCaseSavings, formatMoney, soloWindow, type TripInput } from '@splitcab/core';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -39,9 +39,13 @@ export default function Plan() {
 
   const now = Date.now();
   const ready = Boolean(draft.origin && draft.destination);
-  const estimate = ready
-    ? soloWindow({ origin: draft.origin!, destination: draft.destination!, timeMode: draft.timeMode, time: draft.time.getTime(), flexMin: draft.flexMin, seats: draft.seats }).solo
+  const like = ready
+    ? { origin: draft.origin!, destination: draft.destination!, timeMode: draft.timeMode, time: draft.time.getTime(), flexMin: draft.flexMin, seats: draft.seats }
     : null;
+  const estimate = like ? soloWindow(like).solo : null;
+  // A partner making exactly the same trip; anyone else saves you less. Below the minimum nobody can be matched.
+  const upTo = like ? bestCaseSavings(like) : null;
+  const worthSharing = upTo === null || upTo >= CONFIG.matching.minNetSavings;
   const fee = formatMoney(config.data?.matchFee ?? CONFIG.matchFee);
   const card = me?.paymentMethod;
   const arrive = draft.timeMode === 'arrive';
@@ -121,7 +125,7 @@ export default function Plan() {
             title={card ? 'Find someone to share with' : 'Add card and find a match'}
             onPress={submit}
             loading={busy}
-            disabled={!ready || !config.data}
+            disabled={!ready || !config.data || !worthSharing}
             accessibilityHint={`Places a ${fee} hold on your card, only charged if you're matched`}
           />
           <AppText variant="small" muted style={{ textAlign: 'center' }}>
@@ -204,9 +208,14 @@ export default function Plan() {
       )}
 
       <Card>
-        {estimate ? (
+        {estimate && upTo !== null ? (
           <>
             <AppText variant="body">{`About ${money(estimate.fare)} on your own (~${Math.round(estimate.minutes)} min)`}</AppText>
+            {worthSharing ? (
+              <AppText variant="small" muted>{`Sharing saves you up to ${money(upTo)} after the fee.`}</AppText>
+            ) : (
+              <Note tone="warn">{`Sharing this trip would save you less than ${money(CONFIG.matching.minNetSavings)}, so we don't match it. Sharing pays on longer trips, like to or from the airport.`}</Note>
+            )}
             <Divider />
           </>
         ) : null}

@@ -12,7 +12,7 @@ HOW IT WORKS
 • Tell us where you're going and roughly when you want to leave or arrive.
 • We find someone nearby going your way and show exactly what you'll each pay before you agree.
 • You both accept, agree where to meet in the chat, and one of you books the taxi in your usual taxi app or takes one from a rank.
-• After the ride, the person who booked enters the fare and SplitCab shows who owes what. Pay them back in one tap with Revolut (a card works too), by scanning their QR code, or in cash. You both get a receipt.
+• After the ride, the person who booked enters the fare and SplitCab shows who owes what. Pay them back on their Revolut page (a card works too), by scanning their QR code, or in cash. You both get a receipt.
 
 NO MATCH, NO CHARGE
 When you post a trip we place a €1.99 hold on your card. It's only charged if you're matched and you both accept. If no one is found, the hold is released automatically.
@@ -25,8 +25,9 @@ BUILT FOR SAFETY
 • Your exact pickup point is only shared once you've both accepted.
 • Ratings after every ride.
 • Report or block anyone in two taps. Blocking someone before the ride cancels it and refunds both match fees.
+• Reports reach us straight away, and if more than one person reports someone, their account is paused while we look into it.
 
-SplitCab is for adults aged 18 and over and works anywhere on the island of Ireland. SplitCab doesn't provide taxis: you ride in a licensed taxi that you book yourselves.`;
+SplitCab is for adults aged 18 and over and works in the Republic of Ireland. SplitCab doesn't provide taxis: you ride in a licensed taxi that you book yourselves.`;
 
 module.exports = () => ({
   configVersion: 0,

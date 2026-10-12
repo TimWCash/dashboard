@@ -37,16 +37,16 @@ const features: { icon: ReactNode; title: string; text: string }[] = [
   {
     icon: <ShieldCheck aria-hidden />,
     title: "Safety built in",
-    text: "Mobile-verified accounts. Your exact pickup and chat open only after you both accept. Your number is never shown. Block or report in one tap.",
+    text: "Mobile-verified accounts. Your exact pickup and chat open only after you both accept. Your number is never shown. Block or report anyone from the trip screen.",
   },
   {
     icon: <CarTaxiFront aria-hidden />,
     title: "Book the way you like",
-    text: "Uber opens with both stops filled in. Or use FREENOW, or walk to a rank.",
+    text: "Uber opens with your pickup and destination filled in. If your partner has their own stop, you add it in Uber. Or use FREENOW, or walk to a rank.",
   },
   {
     icon: <QrCode aria-hidden />,
-    title: "Pay back in a tap",
+    title: "Easy to pay back",
     text: "Add your Revtag and your partner pays you through Revolut, or scans your QR code. Cash works too.",
   },
   {
@@ -72,11 +72,11 @@ const faqs = [
   },
   {
     q: "Is it safe to share with a stranger?",
-    a: "Everyone signs in with a mobile number, but you only ever see a first name and rating. The exact pickup point and chat open only once you've both said yes. Tap Safety on any trip to report or block someone. In an emergency, call 112.",
+    a: "Everyone signs in with a mobile number, but you only ever see a first name and rating. The exact pickup point and chat open only once you've both said yes. Tap Safety on any trip to report or block someone. Reports reach us straight away, and if more than one person reports someone, their account is paused while we look into it. In an emergency, call 112.",
   },
   {
     q: "Where does it work?",
-    a: "In Ireland. Each share is worked out from the National Transport Authority's taxi fares.",
+    a: "In the Republic of Ireland. Each share is worked out from the National Transport Authority's taxi fares, which don't apply in Northern Ireland.",
   },
 ]
 

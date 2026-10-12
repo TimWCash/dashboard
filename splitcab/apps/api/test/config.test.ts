@@ -16,6 +16,7 @@ describe('production configuration', () => {
     STRIPE_PUBLISHABLE_KEY: 'pk_live_1',
     STRIPE_WEBHOOK_SECRET: 'whsec_1',
     PUSH_PROVIDER: 'expo',
+    REPORT_ALERT_WEBHOOK_URL: 'https://hooks.example.com/safety',
   };
 
   test('needs the proxy hop count to be set explicitly', () => {
@@ -26,6 +27,12 @@ describe('production configuration', () => {
   test('refuses development stand-ins and test keys', () => {
     expect(() => loadConfig({ ...production, TRUST_PROXY_HOPS: '1', OTP_PROVIDER: 'dev' })).toThrow(/OTP_PROVIDER=twilio/);
     expect(() => loadConfig({ ...production, TRUST_PROXY_HOPS: '1', STRIPE_SECRET_KEY: 'sk_test_1' })).toThrow(/test key/);
+  });
+
+  test('needs somewhere to send safety reports the moment they are made', () => {
+    const { REPORT_ALERT_WEBHOOK_URL: _, ...withoutAlerts } = production;
+    expect(() => loadConfig({ ...withoutAlerts, TRUST_PROXY_HOPS: '1' })).toThrow(/REPORT_ALERT_WEBHOOK_URL/);
+    expect(() => loadConfig({ ...production, TRUST_PROXY_HOPS: '1', REPORT_ALERT_WEBHOOK_URL: 'http://hooks.example.com/safety' })).toThrow(/https/);
   });
 
   test('the review number must be from an allowed country', () => {

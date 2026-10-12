@@ -9,6 +9,7 @@ import type { Deps } from './deps';
 import { rateLimitKey, registerErrorHandler } from './http';
 import { createJobHandlers } from './jobs/handlers';
 import { JobWorker } from './jobs/queue';
+import { createAlertSender, type AlertSender } from './providers/alerts';
 import { createOtpProvider, type OtpProvider } from './providers/otp';
 import { createPaymentGateway, type PaymentGateway } from './providers/payments';
 import { createPlacesProvider, type PlacesProvider } from './providers/places';
@@ -27,6 +28,7 @@ export interface BuildOptions {
   payments?: PaymentGateway;
   push?: PushSender;
   places?: PlacesProvider;
+  alerts?: AlertSender;
 }
 
 export interface Built {
@@ -67,6 +69,7 @@ export async function buildApp(opts: BuildOptions): Promise<Built> {
     payments: opts.payments ?? createPaymentGateway(config),
     push: opts.push ?? createPushSender(config, (msg) => app.log.info(msg)),
     places: opts.places ?? createPlacesProvider(config),
+    alerts: opts.alerts ?? createAlertSender(config, (msg) => app.log.warn(msg)),
   };
   const rides = new RideService(deps);
   const worker = new JobWorker(deps, createJobHandlers(deps, rides));

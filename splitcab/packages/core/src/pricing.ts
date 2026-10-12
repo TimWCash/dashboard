@@ -86,6 +86,18 @@ export function sameTripQuote(origin: LatLng, destination: LatLng, at: number): 
   return { ...solo, share, matchFee: CONFIG.matchFee, savings: solo.fare - share - CONFIG.matchFee };
 }
 
+// What a solo taxi would have cost, given what the rider actually paid toward the shared one. Whatever moved the
+// meter away from the estimate (traffic, the route taken) would have moved a solo fare the same way, so the
+// estimate is scaled by the same amount. The saving then stays the percentage quoted with the match.
+export function soloFareFor(planned: { soloFare: number; share: number }, actualShare: number): number {
+  return planned.share > 0 ? Math.round((planned.soloFare * actualShare) / planned.share) : planned.soloFare;
+}
+
+// What a rider saved on a shared ride, after the match fee they were charged.
+export function rideSavings(planned: { soloFare: number; share: number }, actualShare: number, feeCharged: number): number {
+  return soloFareFor(planned, actualShare) - actualShare - feeCharged;
+}
+
 const zoneParts = (timeZone: string) =>
   new Intl.DateTimeFormat('en-GB', { timeZone, hourCycle: 'h23', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric' });
 

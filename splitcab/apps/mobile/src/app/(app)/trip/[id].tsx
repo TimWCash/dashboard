@@ -1,4 +1,4 @@
-import type { MatchView, TripView } from '@splitcab/core';
+import { CONFIG, rideSavings, type MatchView, type TripView } from '@splitcab/core';
 import * as Clipboard from 'expo-clipboard';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
@@ -148,7 +148,8 @@ function FellThrough({ match }: { match: MatchView | null }) {
   return <Note tone="warn">{`${why}, so we're looking again.${refund}`}</Note>;
 }
 
-// Matches expire after 10 minutes, so someone who pockets their phone needs a notification to catch one.
+// A match for a trip leaving soon has to be answered within 10 minutes, so someone who pockets their phone needs a
+// notification to catch one.
 function NotificationsPrompt() {
   const [status, setStatus] = useState<PushStatus | null>(null);
   useEffect(() => {
@@ -164,7 +165,7 @@ function NotificationsPrompt() {
         </AppText>
       </Row>
       <AppText variant="small" muted>
-        You'll have 10 minutes to say yes.
+        {`If your trip leaves soon, you'll have ${CONFIG.accept.minMinutes} minutes to say yes.`}
       </AppText>
       {status === 'askable' ? (
         <Button title="Turn on notifications" variant="dark" onPress={async () => setStatus((await registerForPush(true)) ? 'on' : await pushStatus())} />
@@ -215,8 +216,8 @@ function Proposed({ trip, match, onError }: Section & { match: MatchView }) {
           <Note tone="warn">
             <Row gap={space.xs} style={{ flexWrap: 'wrap' }}>
               <AppText variant="small">{`You said yes. Waiting for ${name}`}</AppText>
-              <Countdown until={match.expiresAt} prefix="(" />
-              <AppText variant="small">{` left). You're only charged if ${name} says yes too.`}</AppText>
+              <Countdown until={match.expiresAt} prefix=" (" suffix=" left)" longPrefix=" (until " longSuffix=")" />
+              <AppText variant="small">{`. You're only charged if ${name} says yes too.`}</AppText>
             </Row>
           </Note>
           <CancelButton trip={trip} onError={onError} warning="You won't be charged." />
@@ -241,7 +242,7 @@ function Proposed({ trip, match, onError }: Section & { match: MatchView }) {
             />
           </Row>
           <Row style={{ justifyContent: 'center' }} gap={space.xs}>
-            <Countdown until={match.expiresAt} prefix="Respond within " />
+            <Countdown until={match.expiresAt} prefix="Respond within " longPrefix="Respond by " />
             {match.partnerAccepted ? <AppText variant="small" muted>{` · ${name} has said yes`}</AppText> : null}
           </Row>
           <AppText variant="small" muted style={{ textAlign: 'center' }}>
@@ -287,7 +288,9 @@ function Confirmed({ trip, match, onError }: Section & { match: MatchView }) {
           <AppText variant="heading">You book the taxi</AppText>
           <AppText variant="body">
             {`Book a taxi for ${clock(match.plan.startAt)} from ${route[0]!.label}`}
-            {partnerStops.length ? `, with a stop at ${partnerStops.map((s) => s.label).join(' and ')} for ${name}.` : `. ${name} will meet you there.`}
+            {partnerStops.length
+              ? `, with a stop at ${partnerStops.map((s) => s.label).join(' and ')} for ${name}. Uber fills in your pickup and destination; add ${name}'s stop yourself.`
+              : `. ${name} will meet you there.`}
           </AppText>
           <Row>
             {options
@@ -432,7 +435,7 @@ function GetPaidBack({ trip, match }: { trip: TripView; match: MatchView }) {
                 </View>
               ) : (
                 <AppText variant="small" muted>
-                  {`${name} can pay you on Revolut in one tap from their app.`}
+                  {`${name} can pay you from the Revolut app, or by card on your Revolut page.`}
                 </AppText>
               )}
               <Button title={showQr ? 'Hide the QR code' : 'Show my Revolut QR code'} variant={showQr ? 'link' : 'dark'} icon={showQr ? undefined : 'qr-code-outline'} onPress={() => setShowQr(!showQr)} />
@@ -454,7 +457,7 @@ function Completed({ trip, match, onError }: Section & { match: MatchView }) {
   const s = match.settlement;
   const name = match.partner.firstName;
   const myShare = s ? (match.youBook ? s.actualFare - s.owedToYou : s.youOwe) : match.plan.you.share;
-  const saved = match.plan.you.soloFare - myShare - match.plan.you.fee;
+  const saved = rideSavings(match.plan.you, myShare, match.plan.you.fee);
 
   function pick(n: number) {
     setStars(n);

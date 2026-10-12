@@ -67,16 +67,21 @@ function Result({ result }: { result: Estimate }) {
         <Row label="Your share, shared" value={formatMoney(q.share)} strong />
         <Row label="Match fee" note="Only if you're matched and both say yes" value={formatMoney(q.matchFee)} />
         <div className="border-t border-border pt-4">
-          {q.savings > 0 ? (
-            <Row label="You save" value={formatMoney(q.savings)} good />
+          {q.savings >= CONFIG.matching.minNetSavings ? (
+            <Row label="You save up to" value={formatMoney(q.savings)} good />
           ) : (
-            <p className="text-sm text-muted-foreground">On a trip this short, the match fee is more than you'd save.</p>
+            <p className="text-sm text-muted-foreground">
+              Sharing this trip would save you less than {formatMoney(CONFIG.matching.minNetSavings)}, so we don't match it. Sharing pays on
+              longer trips, like to or from the airport.
+            </p>
           )}
         </div>
       </dl>
       <p className="mt-6 text-xs leading-relaxed text-muted-foreground">
-        At the National Transport Authority's maximum taxi fares, sharing with someone making the same trip. A travel partner with a
-        different stop adds a little to your share; the app shows the exact amount before you say yes.
+        At the National Transport Authority's maximum taxi fares, sharing with someone making the same trip, so this is the most you'd
+        save. A travel partner with a different stop adds a little to your share; the app shows the exact amount before you say yes.
+        Both fares include the {formatMoney(CONFIG.fare.bookingFee)} fee for booking by app. Taking a taxi from a rank instead, you'd
+        each save {formatMoney(CONFIG.fare.bookingFee / 2)} less.
       </p>
     </div>
   )

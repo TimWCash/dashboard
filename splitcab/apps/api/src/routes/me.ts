@@ -94,6 +94,9 @@ export function meRoutes(app: FastifyInstance, deps: Deps, rides: RideService) {
         card: user.payment_method_last4 ? `${user.payment_method_brand} ending ${user.payment_method_last4}` : null,
         revtag: user.revtag,
         ridesCompleted: user.rides_completed,
+        // When and why the account was paused, if it is.
+        pausedAt: user.suspended_at,
+        pausedBecause: user.suspended_reason,
       },
       trips: await q(
         `SELECT id, origin_label, origin_lat, origin_lng, dest_label, dest_lat, dest_lng, time_mode, target_time, flex_min, seats, status, start_now_at, created_at

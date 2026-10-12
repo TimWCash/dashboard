@@ -1,4 +1,4 @@
-import { CONFIG, haversineKm, type LatLng, type MatchView, type MeView, type PaymentView, type ReceiptView, type RouteStop, type TripView } from '@splitcab/core';
+import { CONFIG, haversineKm, rideSavings, soloFareFor, type LatLng, type MatchView, type MeView, type PaymentView, type ReceiptView, type RouteStop, type TripView } from '@splitcab/core';
 import type { Queryable } from '../db';
 import { conflict, notFound } from '../errors';
 import { nearestArea } from './retention';
@@ -26,6 +26,7 @@ export function meView(u: UserRow, termsVersion: string): MeView {
     ratingAvg: ratingAvg(u),
     ridesCompleted: u.rides_completed,
     revtag: u.revtag,
+    paused: Boolean(u.suspended_at),
   };
 }
 
@@ -250,7 +251,13 @@ export async function receiptView(q: Queryable, merchant: ReceiptView['merchant'
     currency: CONFIG.currency,
     merchant,
     ride: { from: trip.origin_label, to: trip.dest_label, pickupAt: iso(me.pickupAt), dropoffAt: iso(me.dropoffAt), partner, youBooked },
-    fare: { meterTotal: s?.actualFare ?? null, yourShare, partnerShare, soloEstimate: me.soloFare, savings: Math.max(0, me.soloFare - yourShare - feeCharged) },
+    fare: {
+      meterTotal: s?.actualFare ?? null,
+      yourShare,
+      partnerShare,
+      soloEstimate: soloFareFor(me, yourShare),
+      savings: Math.max(0, rideSavings(me, yourShare, feeCharged)),
+    },
     matchFee: payment ? { amount: payment.amount, status: payment.status } : null,
     settleUp: {
       youOwe: s && !youBooked ? s.partnerOwes : 0,

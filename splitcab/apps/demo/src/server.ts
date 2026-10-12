@@ -12,6 +12,7 @@ import type { Deps } from '../../api/src/deps';
 import { registerErrorHandler } from '../../api/src/http';
 import { createJobHandlers } from '../../api/src/jobs/handlers';
 import { JobWorker } from '../../api/src/jobs/queue';
+import { MemoryAlerts } from '../../api/src/providers/alerts';
 import { DevOtp } from '../../api/src/providers/otp';
 import { TestGateway } from '../../api/src/providers/payments';
 import { BuiltinPlaces } from '../../api/src/providers/places';
@@ -94,6 +95,7 @@ async function boot() {
     payments: new TestGateway(),
     push: new MemoryPush(),
     places: new BuiltinPlaces(),
+    alerts: new MemoryAlerts(),
   };
   const rides = new RideService(deps);
   const worker = new JobWorker(deps, createJobHandlers(deps, rides));

@@ -69,9 +69,10 @@ export const CONFIG = {
     maxPickupGapKm: 5,
     // Pickups this close are a short walk, so riders meet at one spot instead of adding a stop.
     walkToMeetKm: 0.5,
-    // Both riders must save at least this much of their solo fare, and come out ahead after the fee.
+    // Both riders must save at least this much of their solo fare, and at least minNetSavings after the fee: below
+    // about €4 people don't think sharing with a stranger is worth it.
     minSavingsPct: 0.15,
-    minNetSavings: 100,
+    minNetSavings: 400,
     // Pickup must be at least this far in the future so people can coordinate.
     minLeadMinutes: 5,
   },
@@ -82,13 +83,19 @@ export const CONFIG = {
     minFlexMinutes: 5,
     maxFlexMinutes: 120,
     minTripKm: 1,
-    // The island of Ireland. Trips must start and end inside it.
+    // Around the island of Ireland. Trips must start and end in the Republic: see area.ts.
     serviceArea: { minLat: 51.3, maxLat: 55.45, minLng: -10.7, maxLng: -5.4 },
     maxActiveTripsPerRider: 3,
   },
 
-  // How long the pair has to accept a proposed match.
-  acceptWindowMinutes: 10,
+  // How long the pair has to answer a proposed match. Trips leaving soon get 10 minutes. Trips planned ahead get
+  // until 45 minutes before pickup, for at most 12 hours, so a match found overnight for an early flight is still
+  // there when people wake up.
+  accept: { minMinutes: 10, beforePickupMinutes: 45, maxHours: 12 },
+  // An account is paused automatically, while the reports are looked into, once this many different people it was
+  // matched with (both having accepted) report it within a year: fewer for feeling unsafe or harassment.
+  safety: { pauseAfterSeriousReports: 2, pauseAfterReports: 3, reportWindowDays: 365 },
+
   // Stop searching this long before a trip's latest acceptable pickup.
   stopSearchingMinutesBefore: 10,
 

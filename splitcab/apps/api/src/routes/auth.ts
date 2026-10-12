@@ -1,7 +1,7 @@
 import type { AuthResponse, OtpStartResponse } from '@splitcab/core';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { normalizePhone } from '../auth/phone';
+import { normalizePhone, phoneHash } from '../auth/phone';
 import { withTx } from '../db';
 import type { Deps } from '../deps';
 import { badRequest, tooMany, unauthorized } from '../errors';
@@ -59,7 +59,15 @@ export function authRoutes(app: FastifyInstance, deps: Deps) {
          RETURNING *`,
         [phone, reviewer, new Date(deps.clock())],
       );
-      return rows[0]!;
+      const user = rows[0]!;
+      if (user.suspended_at) return user;
+      // Deleting a paused account and signing up again with the same number doesn't lift the pause.
+      const { rows: paused } = await tx.query<UserRow>(
+        `UPDATE users SET suspended_at = p.paused_at, suspended_reason = 'Signed up again after a paused account was deleted'
+         FROM paused_numbers p WHERE users.id = $1 AND p.phone_hash = $2 RETURNING users.*`,
+        [user.id, phoneHash(deps.config.JWT_SECRET, phone)],
+      );
+      return paused[0] ?? user;
     });
     return issue(user.id, user);
   });

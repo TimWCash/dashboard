@@ -38,6 +38,25 @@ export function searchDeadline(trip: Parameters<typeof soloWindow>[0], cfg: Conf
   return soloWindow(trip).end - cfg.stopSearchingMinutesBefore * MINUTE;
 }
 
+// The most this rider could save after the fee: a partner making exactly the same trip, at the cheapest time in
+// the window. Below CONFIG.matching.minNetSavings nobody could ever be matched with them, so the trip isn't posted.
+export function bestCaseSavings(trip: Parameters<typeof soloWindow>[0], cfg: Config = CONFIG): number {
+  const w = soloWindow(trip);
+  const { km, minutes } = w.solo;
+  const partnerSolo = estimateFare({ km, minutes, at: w.ideal }, cfg.fare);
+  // Tariffs change at most once in a window, so the ends and the middle cover the cheapest one.
+  const total = Math.min(...[w.start, w.ideal, w.end].map((at) => estimateFare({ km, minutes, at, passengers: trip.seats + 1 }, cfg.fare)));
+  const [share = total] = splitProportional(total, [w.solo.fare, partnerSolo]);
+  return w.solo.fare - share - cfg.matchFee;
+}
+
+// When a proposed match lapses if the pair haven't both answered. `startAt` is when the taxi leaves the first stop.
+export function acceptDeadline(now: number, startAt: number, cfg: Config = CONFIG): number {
+  const { minMinutes, beforePickupMinutes, maxHours } = cfg.accept;
+  const until = Math.min(startAt - beforePickupMinutes * MINUTE, now + maxHours * 60 * MINUTE);
+  return Math.max(until, now + minMinutes * MINUTE);
+}
+
 interface Stop {
   riders: Key[];
   kind: 'pickup' | 'dropoff';

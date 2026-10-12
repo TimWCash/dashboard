@@ -1,7 +1,11 @@
 import {
   CONFIG,
+  acceptDeadline,
+  bestCaseSavings,
   boxAround,
   findBestMatch,
+  formatMoney,
+  inServiceArea,
   isValidLatLng,
   roadKm,
   searchDeadline,
@@ -13,6 +17,7 @@ import {
   type TripInput,
 } from '@splitcab/core';
 import { lockMatching, withTx, type Tx } from '../db';
+import { phoneHash } from '../auth/phone';
 import { createModerator } from '../moderation';
 import type { Deps } from '../deps';
 import { AppError, badRequest, conflict, forbidden, notFound } from '../errors';
@@ -46,11 +51,6 @@ const AUTO_COMPLETE_AFTER_MS = 6 * 60 * MINUTE;
 // How long people have to accept a proposal in the public demo.
 const DEMO_ACCEPT_WINDOW_MIN = 3;
 
-function inServiceArea(p: Place) {
-  const a = CONFIG.trips.serviceArea;
-  return p.lat >= a.minLat && p.lat <= a.maxLat && p.lng >= a.minLng && p.lng <= a.maxLng;
-}
-
 function cleanPlace(p: Place): Place {
   return { label: p.label.trim().slice(0, 120), lat: p.lat, lng: p.lng };
 }
@@ -66,6 +66,15 @@ export class RideService {
     return this.deps.clock();
   }
 
+  private paused() {
+    return new AppError(403, 'account_paused', `Your account is paused while we look into a report. If you think this is a mistake, email ${this.deps.config.SUPPORT_EMAIL}.`);
+  }
+
+  private async isPaused(tx: Tx, userId: string) {
+    const { rows } = await tx.query<{ suspended_at: Date | null }>('SELECT suspended_at FROM users WHERE id = $1', [userId]);
+    return Boolean(rows[0]?.suspended_at);
+  }
+
   private tx<T>(fn: (tx: Tx) => Promise<T>) {
     return withTx(this.deps.db, async (tx) => {
       await lockMatching(tx);
@@ -78,6 +87,7 @@ export class RideService {
   async postTrip(userId: string, input: TripInput): Promise<string> {
     const now = this.now();
     const user = await getUser(this.deps.db, userId);
+    if (user.suspended_at) throw this.paused();
     if (!user.first_name || !user.terms_accepted_at) throw conflict('profile_incomplete', 'Finish setting up your profile first.');
     if (user.terms_version !== this.deps.config.TERMS_VERSION) throw conflict('terms_updated', 'Please read and accept the updated Terms and Privacy Policy first.');
     if (!user.payment_method_id || !user.stripe_customer_id) throw conflict('payment_method_required', 'Add a card before posting a trip.');
@@ -87,7 +97,7 @@ export class RideService {
     if (!isValidLatLng(origin) || !isValidLatLng(destination) || !origin.label || !destination.label) {
       throw badRequest('invalid_place', 'Choose where you are leaving from and going to.');
     }
-    if (!inServiceArea(origin) || !inServiceArea(destination)) throw badRequest('outside_service_area', 'SplitCab is only available in Ireland for now.');
+    if (!inServiceArea(origin) || !inServiceArea(destination)) throw badRequest('outside_service_area', 'SplitCab is only available in the Republic of Ireland for now.');
     // Labels are shown to the other traveller once matched, so they go through the same filter as chat.
     if (!this.moderate(origin.label).ok || !this.moderate(destination.label).ok) {
       throw badRequest('invalid_place', 'Choose the pickup and destination from the search results.');
@@ -104,6 +114,12 @@ export class RideService {
     const searchUntil = searchDeadline(like);
     if (searchUntil <= now + MINUTE) {
       throw badRequest('too_soon', 'That time is too soon to find someone. Pick a later time or allow more flexibility.');
+    }
+    if (bestCaseSavings(like) < CONFIG.matching.minNetSavings) {
+      throw badRequest(
+        'not_worth_sharing',
+        `Sharing this trip would save you less than ${formatMoney(CONFIG.matching.minNetSavings)}, so we don't match it. Sharing pays on longer trips, like to or from the airport.`,
+      );
     }
     const soloFare = soloWindow(like).solo.fare;
 
@@ -260,6 +276,7 @@ export class RideService {
     // Demo travellers and the store review account only ever match each other.
     if (await this.isDemo(tx, trip.user_id)) return null;
     if (await this.isReviewer(tx, trip.user_id)) return null;
+    if (await this.isPaused(tx, trip.user_id)) return null;
     const box = boxAround({ lat: trip.origin_lat, lng: trip.origin_lng }, CONFIG.matching.maxPickupGapKm / CONFIG.geo.circuity);
     // Coarse prefilters only; the matching engine makes the real decision.
     const { rows: candidates } = await tx.query<TripRow>(
@@ -268,7 +285,7 @@ export class RideService {
          AND t.seats + $4 <= $5
          AND t.origin_lat BETWEEN $6 AND $7 AND t.origin_lng BETWEEN $8 AND $9
          AND abs(extract(epoch FROM t.target_time - $10::timestamptz)) <= (t.flex_min + $11) * 60 + 4 * 3600
-         AND NOT EXISTS (SELECT 1 FROM users du WHERE du.id = t.user_id AND (du.is_demo OR du.is_reviewer))
+         AND NOT EXISTS (SELECT 1 FROM users du WHERE du.id = t.user_id AND (du.is_demo OR du.is_reviewer OR du.suspended_at IS NOT NULL))
          AND NOT EXISTS (
            SELECT 1 FROM matches pm JOIN trips pa ON pa.id = pm.trip_a JOIN trips pb ON pb.id = pm.trip_b
            WHERE pm.status IN ('declined', 'expired', 'cancelled') AND pm.ended_at > $12
@@ -303,8 +320,8 @@ export class RideService {
 
   private async propose(tx: Tx, a: TripRow, b: TripRow, plan: SharedPlan, now: number): Promise<MatchRow> {
     // The public demo gives three minutes: whoever's on the other end is either there now or has closed the page.
-    const window = (this.deps.config.DEMO_MODE ? DEMO_ACCEPT_WINDOW_MIN : CONFIG.acceptWindowMinutes) * MINUTE;
-    const expiresAt = Math.min(now + window, a.search_until.getTime(), b.search_until.getTime());
+    const deadline = this.deps.config.DEMO_MODE ? now + DEMO_ACCEPT_WINDOW_MIN * MINUTE : acceptDeadline(now, plan.startAt);
+    const expiresAt = Math.min(deadline, a.search_until.getTime(), b.search_until.getTime());
     const { rows } = await tx.query<MatchRow>(
       `INSERT INTO matches (trip_a, trip_b, status, plan, booker_trip_id, proposed_at, expires_at)
        VALUES ($1, $2, 'proposed', $3, $4, $5, $6) RETURNING *`,
@@ -327,7 +344,7 @@ export class RideService {
       [b, a],
     ] as const) {
       await this.setTrip(tx, mine.id, { status: 'proposed', match_id: match.id }, now);
-      await notify(tx, now, mine.user_id, { kind: 'match_found', partner: names.get(theirs.user_id) ?? 'Someone' }, { tripId: mine.id });
+      await notify(tx, now, mine.user_id, { kind: 'match_found', partner: names.get(theirs.user_id) ?? 'Someone', acceptBy: expiresAt, now }, { tripId: mine.id });
     }
     return match;
   }
@@ -352,6 +369,7 @@ export class RideService {
     return this.tx(async (tx) => {
       const now = this.now();
       const { match, mine, partner } = await this.memberMatch(tx, userId, matchId);
+      if (accept && (await this.isPaused(tx, userId))) throw this.paused();
       if (match.status !== 'proposed') throw conflict('match_closed', 'This match is no longer waiting for an answer.');
       if (now >= match.expires_at.getTime()) {
         await this.unwind(tx, match, 'expired', now);
@@ -512,6 +530,7 @@ export class RideService {
     return withTx(this.deps.db, async (tx) => {
       const now = this.now();
       const { match, mine, partner } = await this.memberMatch(tx, userId, matchId);
+      if (await this.isPaused(tx, userId)) throw this.paused();
       if (match.status !== 'confirmed' && match.status !== 'completed') {
         throw conflict('chat_closed', 'You can message your travel partner once you have both accepted.');
       }
@@ -609,19 +628,73 @@ export class RideService {
 
   // ---- safety ----------------------------------------------------------------------------
 
+  // Every report is announced to whoever runs SplitCab straight away. Reports from enough different people pause
+  // the reported account until someone has looked into them.
   async report(userId: string, matchId: string, reason: ReportReason, details?: string) {
-    await withTx(this.deps.db, async (tx) => {
+    await this.tx(async (tx) => {
+      const now = this.now();
       const { match, partner } = await this.memberMatch(tx, userId, matchId);
-      await tx.query('INSERT INTO reports (reporter_id, reported_id, match_id, reason, details, created_at) VALUES ($1, $2, $3, $4, $5, $6)', [
-        userId,
-        partner.user_id,
-        match.id,
-        reason,
-        details?.trim().slice(0, 1000) || null,
-        new Date(this.now()),
-      ]);
+      const { rows } = await tx.query<{ id: string }>(
+        'INSERT INTO reports (reporter_id, reported_id, match_id, reason, details, created_at) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
+        [userId, partner.user_id, match.id, reason, details?.trim().slice(0, 1000) || null, new Date(now)],
+      );
+      if (await this.reportsWarrantPause(tx, partner.user_id, now)) await this.suspendLocked(tx, partner.user_id, 'Reported by several people', now);
+      await enqueue(tx, now, 'report.alert', { reportId: rows[0]!.id });
     });
     this.deps.log.warn({ matchId, reason }, 'user report filed');
+  }
+
+  // Counts different people, so one person reporting over and over can't pause someone. Only reports from people
+  // who were matched with them and both accepted count, and only ones nobody has dealt with yet.
+  private async reportsWarrantPause(tx: Tx, userId: string, now: number) {
+    const { pauseAfterSeriousReports, pauseAfterReports, reportWindowDays } = CONFIG.safety;
+    const { rows } = await tx.query<{ serious: number; total: number }>(
+      `SELECT count(DISTINCT r.reporter_id) FILTER (WHERE r.reason IN ('unsafe', 'harassment'))::int AS serious,
+              count(DISTINCT r.reporter_id)::int AS total
+       FROM reports r JOIN matches m ON m.id = r.match_id
+       WHERE r.reported_id = $1 AND r.resolved_at IS NULL AND r.created_at > $2 AND m.confirmed_at IS NOT NULL`,
+      [userId, daysAgo(now, reportWindowDays)],
+    );
+    const { serious = 0, total = 0 } = rows[0] ?? {};
+    return serious >= pauseAfterSeriousReports || total >= pauseAfterReports;
+  }
+
+  // Support pauses an account by hand (npm run ops -- suspend).
+  async suspend(userId: string, reason: string) {
+    await this.tx((tx) => this.suspendLocked(tx, userId, reason.trim().slice(0, 300) || 'Paused by support', this.now()));
+  }
+
+  // Lifts a pause once the reports have been looked into, and marks them dealt with so they don't count again.
+  async unsuspend(userId: string) {
+    await withTx(this.deps.db, async (tx) => {
+      const at = new Date(this.now());
+      await tx.query('UPDATE users SET suspended_at = NULL, suspended_reason = NULL WHERE id = $1', [userId]);
+      await tx.query('UPDATE reports SET resolved_at = $2 WHERE reported_id = $1 AND resolved_at IS NULL', [userId, at]);
+    });
+  }
+
+  // A paused account's open trips are cancelled and their holds released, a proposal falls through, and a ride
+  // that hasn't started is cancelled with both match fees refunded, as when someone is blocked. A ride that has
+  // started or finished stays, so it can still be settled.
+  private async suspendLocked(tx: Tx, userId: string, reason: string, now: number) {
+    const { rowCount } = await tx.query('UPDATE users SET suspended_at = $2, suspended_reason = $3 WHERE id = $1 AND suspended_at IS NULL', [
+      userId,
+      new Date(now),
+      reason,
+    ]);
+    if (!rowCount) return;
+    const { rows: active } = await tx.query<TripRow>('SELECT * FROM trips WHERE user_id = $1 AND status = ANY($2) FOR UPDATE', [userId, ACTIVE]);
+    for (const trip of active) {
+      if (trip.status !== 'confirmed') {
+        await this.cancelLocked(tx, trip, now);
+        continue;
+      }
+      const match = (await getMatch(tx, trip.match_id!, { lock: true }))!;
+      if (now >= match.plan.startAt) continue;
+      const partner = (await getTrip(tx, partnerTripId(match, trip.id), { lock: true }))!;
+      await this.endConfirmed(tx, match, trip, partner, now, { refundCanceller: false });
+      if (trip.payment_id) await enqueue(tx, now, 'payment.refund', { paymentId: trip.payment_id });
+    }
   }
 
   // Blocking ends any open match with that person. A confirmed ride is cancelled with both fees refunded,
@@ -651,6 +724,12 @@ export class RideService {
       const user = await getUser(tx, userId);
       const { rows: active } = await tx.query<TripRow>('SELECT * FROM trips WHERE user_id = $1 AND status = ANY($2) FOR UPDATE', [userId, ACTIVE]);
       for (const trip of active) await this.cancelLocked(tx, trip, now);
+      if (user.suspended_at && user.phone) {
+        await tx.query(
+          'INSERT INTO paused_numbers (phone_hash, paused_at, created_at) VALUES ($1, $2, $3) ON CONFLICT (phone_hash) DO UPDATE SET paused_at = EXCLUDED.paused_at, created_at = EXCLUDED.created_at',
+          [phoneHash(this.deps.config.JWT_SECRET, user.phone), user.suspended_at, new Date(now)],
+        );
+      }
       await tx.query(
         `UPDATE users SET phone = NULL, first_name = NULL, push_token = NULL, payment_method_id = NULL,
            payment_method_brand = NULL, payment_method_last4 = NULL, revtag = NULL, deleted_at = $2 WHERE id = $1`,
@@ -687,10 +766,16 @@ export class RideService {
   // who joins a little further along the same route and accepts straight away. Demo travellers never
   // match anyone else and no real payment is involved.
   private async addReviewCompanion(tx: Tx, trip: TripRow, now: number) {
-    const along = (a: number, b: number) => a + (b - a) * 0.3;
-    const origin = { label: 'On your way', lat: along(trip.origin_lat, trip.dest_lat), lng: along(trip.origin_lng, trip.dest_lng) };
     const destination = { label: trip.dest_label, lat: trip.dest_lat, lng: trip.dest_lng };
-    const like = { origin, destination, timeMode: trip.time_mode, time: trip.target_time.getTime(), flexMin: 30, seats: 1 };
+    const along = (a: number, b: number) => a + (b - a) * 0.3;
+    const onTheWay = { label: 'On your way', lat: along(trip.origin_lat, trip.dest_lat), lng: along(trip.origin_lng, trip.dest_lng) };
+    const sameStart = { label: trip.origin_label, lat: trip.origin_lat, lng: trip.origin_lng };
+    const likeFrom = (origin: Place) => ({ origin, destination, timeMode: trip.time_mode, time: trip.target_time.getTime(), flexMin: 30, seats: 1 });
+    // Joining along the way shows off a shared route, but on a shorter trip it can save less than the minimum. The
+    // same trip always saves the most, and every posted trip can save the minimum that way.
+    const origin = [onTheWay, sameStart].find((o) => findBestMatch(toTripLike(trip), [{ ...likeFrom(o), id: 'companion', riderId: 'companion' }], now));
+    if (!origin) return;
+    const like = likeFrom(origin);
     const searchUntil = searchDeadline(like);
     if (searchUntil <= now) return;
     const { rows: users } = await tx.query<{ id: string }>(
@@ -849,6 +934,7 @@ export class RideService {
     }
 
     await db.query('UPDATE reports SET details = NULL WHERE details IS NOT NULL AND created_at < $1', [daysAgo(now, RETENTION.reportDetailsDays)]);
+    await db.query('DELETE FROM paused_numbers WHERE created_at < $1', [daysAgo(now, RETENTION.pausedNumberDays)]);
 
     // Accounts nobody has used for two years. The public demo keeps them for a day: people try it with their
     // real number, and nothing there is worth keeping.

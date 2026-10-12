@@ -4,6 +4,7 @@ import { buildApp, type Built } from '../src/app';
 import { loadConfig } from '../src/config';
 import { createPool, type Db } from '../src/db';
 import { migrate } from '../src/migrate';
+import { MemoryAlerts } from '../src/providers/alerts';
 import { MemoryPush } from '../src/providers/push';
 import { TestGateway, type PaymentGateway } from '../src/providers/payments';
 
@@ -32,6 +33,7 @@ export interface Harness extends Built {
   clock: { now: number };
   gateway: TestGateway;
   push: MemoryPush;
+  alerts: MemoryAlerts;
   call: (method: string, url: string, opts?: { token?: string; body?: unknown; headers?: Record<string, string> }) => Promise<{ status: number; json: any }>;
   advance: (ms: number) => void;
   runJobs: () => Promise<number>;
@@ -41,6 +43,7 @@ export async function harness(db: Db, opts: { payments?: PaymentGateway; env?: R
   const clock = { now: START };
   const gateway = new TestGateway();
   const push = new MemoryPush();
+  const alerts = new MemoryAlerts();
   const config = loadConfig({
     DATABASE_URL: TEST_DB,
     JWT_SECRET: 'test-secret-that-is-long-enough-for-hs256',
@@ -48,13 +51,14 @@ export async function harness(db: Db, opts: { payments?: PaymentGateway; env?: R
     LOG_LEVEL: 'silent',
     ...opts.env,
   });
-  const built = await buildApp({ config, db, clock: () => clock.now, payments: opts.payments ?? gateway, push });
+  const built = await buildApp({ config, db, clock: () => clock.now, payments: opts.payments ?? gateway, push, alerts });
   const app: FastifyInstance = built.app;
   return {
     ...built,
     clock,
     gateway,
     push,
+    alerts,
     advance: (ms) => {
       clock.now += ms;
     },

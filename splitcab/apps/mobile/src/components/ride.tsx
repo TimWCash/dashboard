@@ -1,4 +1,4 @@
-import type { MatchView, TripView } from '@splitcab/core';
+import { rideSavings, type MatchView, type TripView } from '@splitcab/core';
 import { Link, router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Pressable, StyleSheet, View } from 'react-native';
@@ -49,7 +49,7 @@ function summary(trip: TripView): string | null {
       if (!m) return null;
       const s = m.settlement;
       const share = s ? (m.youBook ? s.actualFare - s.owedToYou : s.youOwe) : m.plan.you.share;
-      const saved = m.plan.you.soloFare - share - m.plan.you.fee;
+      const saved = rideSavings(m.plan.you, share, m.plan.you.fee);
       return saved > 0 ? `Shared with ${m.partner.firstName} · you saved ${money(saved)}` : `Shared with ${m.partner.firstName}`;
     }
     case 'expired':
@@ -109,16 +109,18 @@ export function Pulse({ size = 56 }: { size?: number }) {
   );
 }
 
-export function Countdown({ until, prefix = '' }: { until: string; prefix?: string }) {
+// Minutes and seconds while under an hour is left ("Respond within 9:41"); the time beyond that ("Respond by 04:15"),
+// since trips planned ahead can be answered until shortly before pickup.
+export function Countdown({ until, prefix = '', suffix = '', longPrefix = prefix, longSuffix = suffix }: { until: string; prefix?: string; suffix?: string; longPrefix?: string; longSuffix?: string }) {
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
   }, []);
+  const long = new Date(until).getTime() - now > 60 * 60_000;
   return (
     <AppText variant="small" muted style={{ fontVariant: ['tabular-nums'] }}>
-      {prefix}
-      {countdown(until, now)}
+      {long ? `${longPrefix}${clock(until)}${longSuffix}` : `${prefix}${countdown(until, now)}${suffix}`}
     </AppText>
   );
 }

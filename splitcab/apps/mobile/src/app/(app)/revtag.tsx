@@ -38,7 +38,7 @@ export default function Revtag() {
           Get paid back by Revolut
         </AppText>
         <AppText variant="body" muted>
-          When you book the taxi, your travel partner pays you back. With your Revtag they can pay you in one tap, or by scanning a QR code on
+          When you book the taxi, your travel partner pays you back. With your Revtag they can pay you on your Revolut page, or by scanning a QR code on
           your phone. They don't need Revolut: they can pay by card.
         </AppText>
         <Field

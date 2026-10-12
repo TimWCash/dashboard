@@ -22,6 +22,8 @@ export interface UserRow {
   revtag: string | null;
   terms_version: string | null;
   last_active_at: Date;
+  suspended_at: Date | null;
+  suspended_reason: string | null;
 }
 
 export interface TripRow {

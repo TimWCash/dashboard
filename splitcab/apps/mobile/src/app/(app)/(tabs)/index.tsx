@@ -4,12 +4,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { TripCard } from '../../../components/ride';
 import { AppText, Button, Note } from '../../../components/ui';
 import { useAuth } from '../../../lib/auth';
-import { useTrips } from '../../../lib/queries';
+import { useConfig, useTrips } from '../../../lib/queries';
 import { space, useTheme } from '../../../lib/theme';
 
 export default function Trips() {
   const { c } = useTheme();
   const { me } = useAuth();
+  const config = useConfig();
   const active = useTrips('active');
   const past = useTrips('past');
   const trips = active.data ?? [];
@@ -32,12 +33,19 @@ export default function Trips() {
         ) : null}
       </View>
 
+      {me?.paused ? (
+        <Note tone="warn" icon="pause-circle-outline">
+          {`Your account is paused while we look into a report, so you can't post trips or send messages. You can still see your trips and settle up. If you think this is a mistake, email ${config.data?.supportEmail ?? 'us'}.`}
+        </Note>
+      ) : null}
       {active.error ? <Note tone="bad">{active.error.message}</Note> : null}
       {trips.map((t) => (
         <TripCard key={t.id} trip={t} />
       ))}
 
-      <Button title={trips.length ? 'Plan another trip' : 'Plan a trip'} icon="add" variant={trips.length ? 'ghost' : 'primary'} onPress={() => router.push('/plan')} />
+      {me?.paused ? null : (
+        <Button title={trips.length ? 'Plan another trip' : 'Plan a trip'} icon="add" variant={trips.length ? 'ghost' : 'primary'} onPress={() => router.push('/plan')} />
+      )}
 
       {past.data?.length ? (
         <View style={{ gap: space.md }}>

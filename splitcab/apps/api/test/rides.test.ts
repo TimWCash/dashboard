@@ -43,7 +43,11 @@ describe('posting a trip', () => {
     const london = { label: 'London', lat: 51.5, lng: -0.12 };
     const cases: [object, number, string][] = [
       [{ ...trip('stephens-green', 'dub'), destination: london }, 400, 'outside_service_area'],
+      // NTA fares don't apply in Northern Ireland.
+      [{ ...trip('stephens-green', 'dub'), destination: { label: 'Belfast', lat: 54.597, lng: -5.93 } }, 400, 'outside_service_area'],
       [trip('stephens-green', 'trinity'), 400, 'trip_too_short'],
+      // A midday hop across Dublin can't save either rider €4, whoever they share with.
+      [trip('temple-bar', 'rathmines'), 400, 'not_worth_sharing'],
       [trip('stephens-green', 'dub', { inMin: 8 * 24 * 60 }), 400, 'too_far_ahead'],
       [trip('stephens-green', 'dub', { inMin: 0, flexMin: 5 }), 400, 'too_soon'],
       [{ ...trip('stephens-green', 'dub'), seats: 4 }, 400, 'invalid_request'],
@@ -134,6 +138,8 @@ describe('the ride lifecycle', () => {
     expect(h.push.sent.some((m) => m.to === 'ExponentPushToken[Ana]' && /found someone/.test(m.title))).toBe(false);
     await h.runJobs();
     expect(h.push.sent.filter((m) => /found someone/.test(m.title)).map((m) => m.to).sort()).toEqual(['ExponentPushToken[Ana]', 'ExponentPushToken[Ben]']);
+    // Pickup is about an hour away, so they have until 45 minutes before it to answer.
+    expect(h.push.sent.find((m) => /found someone/.test(m.title))!.body).toMatch(/^Ana is heading your way\. You have \d+ minutes to accept\.$|^Ben is heading your way\. You have \d+ minutes to accept\.$/);
 
     // Chat is closed until both accept.
     expect((await h.call('POST', `/v1/matches/${matchId}/messages`, { token: ana.token, body: { text: 'hi' } })).status).toBe(409);
@@ -277,7 +283,16 @@ describe('the ride lifecycle', () => {
     const ben = await rider(h, 'Ben');
     const a = await post(h, ana, trip('stephens-green', 'dub', { inMin: 120 }));
     await post(h, ben, trip('trinity', 'dub', { inMin: 120 }));
-    h.advance((CONFIG.acceptWindowMinutes + 1) * MIN);
+    const proposed = (await get(h, ana, a.id)).match!;
+    // Planned two hours ahead, so they have until 45 minutes before pickup to answer, not just 10 minutes.
+    const expiresAt = Date.parse(proposed.expiresAt);
+    const { plan } = (await db.query<{ plan: { startAt: number } }>('SELECT plan FROM matches WHERE id = $1', [proposed.id])).rows[0]!;
+    expect(expiresAt).toBe(plan.startAt - CONFIG.accept.beforePickupMinutes * MIN);
+    h.advance(expiresAt - h.clock.now - MIN);
+    await h.rides.sweep();
+    await refresh(h, ana);
+    expect((await get(h, ana, a.id)).status).toBe('proposed');
+    h.advance(2 * MIN);
     await h.rides.sweep();
     const view = await get(h, ana, a.id);
     expect(view.status).toBe('searching');

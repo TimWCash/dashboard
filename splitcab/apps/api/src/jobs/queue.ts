@@ -8,6 +8,7 @@ export type JobPayloads = {
   'payment.refund': { paymentId: string };
   'customer.delete': { customerId: string };
   push: { userId: string; title: string; body: string; data: Record<string, string> };
+  'report.alert': { reportId: string };
 };
 export type JobKind = keyof JobPayloads;
 

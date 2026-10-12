@@ -35,6 +35,7 @@ export default function Privacy() {
     ['Exact pickup and drop-off places', `${years(RETENTION.exactPlacesDays)} year, then only the rough area`],
     ['Trips, payments and receipts', `${years(RETENTION.recordsDays)} years, as Irish tax law requires`],
     ['Details of safety reports', `${years(RETENTION.reportDetailsDays)} years`],
+    ['If your account was paused after reports and you delete it', `A scrambled copy of your number for ${years(RETENTION.pausedNumberDays)} years, so the pause can't be skipped by signing up again`],
   ];
 
   async function download() {

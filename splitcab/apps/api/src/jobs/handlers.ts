@@ -5,6 +5,14 @@ import type { RideService } from '../rides/service';
 import { getPayment, setPaymentStatus, type PaymentRow } from '../rides/rows';
 import { enqueue, type JobHandlers } from './queue';
 
+const REPORT_REASON: Record<string, string> = {
+  no_show: "didn't show up",
+  unsafe: 'felt unsafe',
+  harassment: 'harassment or abusive messages',
+  payment: "didn't pay their share",
+  other: 'something else',
+};
+
 // Moves a payment to a new status if it's still in one of the expected states. Returns whether it moved.
 async function transition(deps: Deps, paymentId: string, from: PaymentRow['status'][], to: PaymentRow['status']) {
   return withTx(deps.db, async (tx) => {
@@ -79,6 +87,23 @@ export function createJobHandlers(deps: Deps, rides: RideService): JobHandlers {
 
     'customer.delete': async ({ customerId }) => {
       await payments.deleteCustomer(customerId);
+    },
+
+    // No names, numbers or report text leave the database: support looks the report up with `ops reports`.
+    'report.alert': async ({ reportId }) => {
+      const { rows } = await deps.db.query<{ reason: string; paused: boolean; open: number }>(
+        `SELECT r.reason, u.suspended_at IS NOT NULL AS paused,
+                (SELECT count(DISTINCT o.reporter_id)::int FROM reports o WHERE o.reported_id = r.reported_id AND o.resolved_at IS NULL) AS open
+         FROM reports r JOIN users u ON u.id = r.reported_id WHERE r.id = $1`,
+        [reportId],
+      );
+      const r = rows[0];
+      if (!r) return;
+      const others = r.open > 1 ? ` ${r.open} people have open reports about this account.` : '';
+      const paused = r.paused ? ' The account is paused.' : '';
+      await deps.alerts.send(
+        `New safety report (${reportId.slice(0, 8)}): ${REPORT_REASON[r.reason] ?? r.reason}.${others}${paused} See it with: npm run ops -w @splitcab/api -- reports`,
+      );
     },
 
     push: async ({ userId, title, body, data }) => {

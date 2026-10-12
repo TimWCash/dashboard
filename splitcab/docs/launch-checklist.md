@@ -8,6 +8,8 @@ Everything the code can't do for you, in roughly the order to do it. Items marke
 - [ ] **Decision:** final product name. Search the EUIPO and Irish trademark registers and both app stores for "SplitCab" before spending on branding.
 - [ ] Solicitor review of `apps/site/public/privacy.html` and `apps/site/public/terms.html`. They're live and name Tim Cashman as running SplitCab; switch them to the company's legal name, registered address and CRO number once it exists.
 - [ ] Ask the NTA (or a solicitor) to confirm the model: one hirer, one meter, passengers sharing with the hirer's consent and settling between themselves. Avoid anything resembling separate fares per passenger, which is a regulated "shared hire".
+- [ ] **Get a written opinion on whether SplitCab needs a dispatch operator licence**, before going public. Since the Taxi Regulation Act 2013 was amended in 2016, a dispatch operator includes anyone who, for reward, provides "a service allowing an intending passenger to arrange the hire" of a taxi, and operating without a licence can mean a fine of up to €50,000. SplitCab charges a fee, chooses who books, sets the pickup time and opens Uber with the trip filled in. The NTA is reviewing dispatch licensing during 2026; take part in its consultation. If a licence is needed, apply, or change the product so it isn't.
+- [ ] Northern Ireland is excluded: trips must start and end in the Republic (`packages/core/src/area.ts`), because NTA fares, Irish taxi law and the euro don't apply there. Places within 2 km of the border count as the Republic, since the border data is only accurate to about a kilometre. Get Northern Ireland advice before including it.
 - [ ] **Decision:** VAT. The €1.99 match fee is a service sold in Ireland; ask your accountant whether it includes VAT and register when required. Put the company's legal name, address and VAT number in `RECEIPT_COMPANY_DETAILS` so they're printed on riders' receipts.
 - [ ] Public liability insurance for a platform introducing strangers.
 - [ ] GDPR: work through [`gdpr.md`](gdpr.md). It has the records of processing, retention schedule, processor list, how to handle data requests and breaches, and a DPIA starter. Sign data processing agreements with Stripe, Twilio, Expo, Google and your host.
@@ -63,13 +65,23 @@ Everything the code can't do for you, in roughly the order to do it. Items marke
 
 ## 7. Operations before the first real users
 
-- [ ] **Safety reports:** decide who reviews `reports` and how fast (target: within 24 hours, urgent ones immediately). There's no admin screen yet; use SQL until there is:
-      `SELECT r.*, u.first_name FROM reports r JOIN users u ON u.id = r.reported_id WHERE resolved_at IS NULL ORDER BY created_at;`
+- [ ] **Safety reports:** set `REPORT_ALERT_WEBHOOK_URL` (production won't start without it) to a Slack or Discord channel, or a webhook-to-email or phone notification service, so every report reaches you the moment it's filed. Decide who answers them, including at 2am on a Saturday, and how fast (target: within 24 hours, unsafe and harassment reports immediately), and say so in the Terms. The support tool does the rest:
+      - `npm run ops -w @splitcab/api -- reports` lists open reports with names and numbers.
+      - `suspend <phone> "reason"` pauses an account by hand.
+      - `unsuspend <phone>` lifts a pause and marks that person's reports as dealt with.
+      Accounts are also paused automatically once two different people they rode with report them for feeling unsafe or harassment, or three for anything (`CONFIG.safety`). Give the person a reason whenever you act on a report (Digital Services Act).
 - [ ] **Refunds and disputes:** handled in the Stripe dashboard; note them on the report.
 - [ ] **Account deletion emails** (from the website): verify by texting the number, then delete via the database or a support script.
 - [ ] **Launch area:** liquidity is everything. Pick one corridor (city centre ↔ Dublin Airport) and seed demand there first.
+- [ ] **Airport pickups:** taxis booked through an app can't use the Dublin Airport rank, but the airport's built-in place is "Dublin Airport T1 (taxi rank)" and the booker is told to book Uber. **Decision:** for arrivals, match after landing and have the pair queue at the rank together with no booker, and ask daa about signage.
 
 ## Known gaps worth planning
+
+From the product review (October 2026), still open and needing your decisions:
+
+- **Who pays the driver.** The booker fronts the fare, enters the meter total alone, and has no protection if the partner doesn't pay or doesn't show. When the booker is dropped first, the partner may end up paying the driver while the app says the partner owes the booker. Options: whoever gets out last pays, settle in the cab before the first drop-off, the partner confirms the fare, a no-show flow with both checking in at the pickup, and asking for the Revtag before Accept.
+- **Night-time safety.** Optional ID checks, sharing the trip with a trusted contact, an "arrived safely?" check-in, a Safety and 112 button during the ride, showing only the area of the partner's drop-off, and a women-only option (ask the solicitor about the Equal Status Acts).
+- **Liquidity.** Ask for the card at Accept rather than before searching, an "accept automatically if I save at least €X" option, a "going anyway, anyone can join" mode with share links, and no fee until the first corridor is busy.
 
 - Admin dashboard for reports, refunds and suspensions.
 - Collecting the passenger's fare share in-app (Stripe Connect) instead of person-to-person settlement.

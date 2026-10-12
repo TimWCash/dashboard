@@ -6,7 +6,7 @@ const timeFmt = new Intl.DateTimeFormat(CONFIG.locale, { timeZone: CONFIG.timeZo
 const at = (ms: number) => timeFmt.format(new Date(ms));
 
 type Notice =
-  | { kind: 'match_found'; partner: string }
+  | { kind: 'match_found'; partner: string; acceptBy: number; now: number }
   | { kind: 'partner_accepted'; partner: string }
   | { kind: 'match_confirmed'; partner: string; youBook: boolean; pickupAt: number }
   | { kind: 'match_fell_through' }
@@ -22,8 +22,11 @@ type Notice =
 function render(n: Notice): { title: string; body: string } {
   const fee = formatMoney(CONFIG.matchFee);
   switch (n.kind) {
-    case 'match_found':
-      return { title: 'We found someone to share with', body: `${n.partner} is heading your way. You have ${CONFIG.acceptWindowMinutes} minutes to accept.` };
+    case 'match_found': {
+      const minutes = Math.round((n.acceptBy - n.now) / 60_000);
+      const deadline = minutes <= 60 ? `You have ${minutes} minutes to accept.` : `Accept by ${at(n.acceptBy)}.`;
+      return { title: 'We found someone to share with', body: `${n.partner} is heading your way. ${deadline}` };
+    }
     case 'partner_accepted':
       return { title: `${n.partner} accepted`, body: 'Accept now to lock in your shared taxi.' };
     case 'match_confirmed':

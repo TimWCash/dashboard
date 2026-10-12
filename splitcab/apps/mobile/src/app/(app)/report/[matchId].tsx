@@ -80,7 +80,7 @@ export default function Report() {
       <Button title="In danger? Call 112" variant="danger" icon="call" onPress={() => Linking.openURL('tel:112').catch(() => {})} />
       <AppText variant="heading">Tell us what happened</AppText>
       <AppText variant="small" muted>
-        Our safety team reviews every report.
+        Reports reach us straight away. If more than one person reports someone, their account is paused while we look into it.
       </AppText>
       <View style={{ gap: space.sm }} accessibilityRole="radiogroup">
         {REPORT_REASONS.map((r) => {

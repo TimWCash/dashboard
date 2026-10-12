@@ -47,8 +47,10 @@ export interface MeView {
   paymentMethod: PaymentMethodView | null;
   ratingAvg: number | null;
   ridesCompleted: number;
-  // Revolut username, so travel partners can pay you back in one tap.
+  // Revolut username, so travel partners can pay you back on your Revolut page.
   revtag: string | null;
+  // Paused while reports about this account are looked into: no new trips, matches or messages.
+  paused: boolean;
 }
 
 export interface UpdateMeRequest {

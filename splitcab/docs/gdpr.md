@@ -31,6 +31,7 @@ These numbers live in `packages/core/src/retention.ts`. The API enforces them, t
 | Expired or revoked sign-in sessions | 7 days | Deleted |
 | Exact pickup and drop-off places (trips and ride plans) | 1 year after the trip | Replaced by the nearest known area; coordinates rounded to about 1 km |
 | Free text in safety reports | 2 years | Cleared (the reason and date stay until 6 years) |
+| Keyed hash of the number of a paused account that was deleted | 2 years | Deleted. The hash is an HMAC keyed with `JWT_SECRET`, so it can't be reversed by hashing every number; it stops the person signing straight back up unpaused. Rotating `JWT_SECRET` makes old entries useless. |
 | Accounts | Until deleted, or 2 years without use | Deleted as if the person had deleted it |
 | Trips, matches, payments, payment history, ratings, receipts | 6 years | Deleted |
 | Deleted accounts' remaining rows (no personal details) | 6 years after deletion | Deleted |
@@ -47,7 +48,7 @@ These numbers live in `packages/core/src/retention.ts`. The API enforces them, t
 | Match fee | Card brand and last four, payment history | Charge, release or refund the €1.99 fee | Contract; legal obligation (tax) | Stripe | 6 years |
 | Paying back between riders | Revtag (optional), amounts owed, "I've paid" | Help the person who owes pay the booker | Contract | The partner who owes money; Revolut only if the payer follows the link | Until removed or the account is deleted |
 | Chat | Messages | Coordinate the pickup | Contract | The matched traveller | 90 days |
-| Safety | Reports, blocks, ratings | Keep travellers safe; act on misconduct | Legitimate interests | Support staff; authorities when the law requires | Report text 2 years; records 6 years |
+| Safety | Reports, blocks, ratings; whether an account is paused, when and why | Keep travellers safe; act on misconduct. Accounts are paused automatically after reports from two people (unsafe or harassment) or three (anything), until support looks into it | Legitimate interests | Support staff; the report alert service (only the kind of report and a reference, no names, numbers or report text); authorities when the law requires | Report text 2 years; records 6 years |
 | Notifications | Push token; message text with first names and amounts | Tell people about matches, messages and payments | Consent (OS permission) | Expo, Apple, Google | Until the token changes or the account is deleted |
 | Support and data requests | Emails, request log | Answer questions and GDPR requests | Legal obligation | Support staff | [e.g. 2 years after closing] |
 
@@ -65,6 +66,8 @@ Sign a data processing agreement (DPA) with each processor and list them in the 
 | Trip map: Google Maps SDK (Android) | The map area being viewed, device IP and identifiers | US | DPF / SCCs | Google Maps Platform terms [ ] |
 | Trip map: Apple MapKit (iPhone) | The map area being viewed | Apple's own terms with the user | Apple acts for the user, not SplitCab | n/a |
 | Demo only: Vercel and Supabase (EU) | The shared demo's accounts and trips. An account unused for a day is deleted as if its owner had deleted it, since people may try the demo with their real number. The one-person demo keeps everything in the visitor's browser. Map tiles come from OpenStreetMap. | EU (Dublin) | None needed | Vercel and Supabase terms [ ] |
+
+The report alert service (`REPORT_ALERT_WEBHOOK_URL`, for example Slack or Discord) receives no personal data: only the kind of report, a reference and how many people have open reports about the account. Check that this stays true if you change the alert text in `jobs/handlers.ts`.
 
 Revolut is not a processor. Riders pay each other under Revolut's own terms; SplitCab only links to the booker's public Revolut page.
 

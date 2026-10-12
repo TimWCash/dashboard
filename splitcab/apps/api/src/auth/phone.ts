@@ -1,3 +1,4 @@
+import { createHmac } from 'node:crypto';
 import { getCountryCallingCode, parsePhoneNumberFromString, type CountryCode } from 'libphonenumber-js';
 import { badRequest } from '../errors';
 
@@ -16,4 +17,10 @@ export function normalizePhone(input: string, allowedCountries?: readonly string
 // For logs and support views: +353 87 ••• 4567.
 export function maskPhone(e164: string): string {
   return e164.length > 7 ? `${e164.slice(0, -7)}•••${e164.slice(-4)}` : '•••';
+}
+
+// A keyed hash of a number, for remembering that a deleted account was paused without keeping the number. Keyed,
+// because there are few enough mobile numbers to hash them all and look one up.
+export function phoneHash(secret: string, e164: string): string {
+  return createHmac('sha256', secret).update(`paused-number:${e164}`).digest('hex');
 }

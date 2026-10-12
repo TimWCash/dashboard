@@ -9,6 +9,9 @@ export const RETENTION = {
   reportDetailsDays: 2 * 365,
   // Accounts with no sign-in or use for this long are deleted.
   inactiveAccountDays: 2 * 365,
+  // When an account paused after safety reports is deleted, a keyed hash of its number, so it can't sign straight
+  // back up unpaused.
+  pausedNumberDays: 2 * 365,
   // Trip, payment and receipt records, for Irish tax law (six years).
   recordsDays: 6 * 365 + 2,
 } as const;

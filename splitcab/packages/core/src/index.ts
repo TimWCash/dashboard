@@ -6,3 +6,4 @@ export * from './matching';
 export * from './places';
 export * from './api';
 export * from './retention';
+export * from './area';

@@ -31,7 +31,7 @@ export default function Chat() {
     send.mutate(body, { onSuccess: () => setText('') });
   }
 
-  const quickReplies = ["I'm here", 'Running 5 min late', 'What are you wearing?'];
+  const quickReplies = ["I'm here", 'Running 5 min late', 'How will I recognise you?'];
 
   return (
     <SafeAreaView edges={['bottom']} style={{ flex: 1, backgroundColor: c.bg }}>

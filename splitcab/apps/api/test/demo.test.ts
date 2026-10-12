@@ -45,6 +45,33 @@ describe('the public demo', () => {
     expect((await get(h, ana, a.id)).status).toBe('searching');
   });
 
+  test('every trip that can be posted gets the pretend partner, short or long', async () => {
+    const pairs = [
+      ['temple-bar', 'dundrum'],
+      ['stephens-green', 'dcu'],
+      ['heuston', 'dun-laoghaire'],
+      ['smithfield', 'ucd'],
+      ['temple-bar', 'rathmines'],
+      ['cork-city', 'cork-airport'],
+      ['eyre-square', 'salthill'],
+    ];
+    let posted = 0;
+    for (const [from, to] of pairs) {
+      const r = await rider(h, `R${from}`);
+      const res = await h.call('POST', '/v1/trips', { token: r.token, body: trip(from!, to!) });
+      if (res.status !== 201) {
+        // Too short to save the minimum, which the person is told before posting.
+        expect(res.json.error.code).toBe('not_worth_sharing');
+        continue;
+      }
+      posted++;
+      h.advance(50_000);
+      await h.rides.sweep();
+      expect((await get(h, r, res.json.id)).match?.partner.firstName, `${from} to ${to}`).toBe('Alex');
+    }
+    expect(posted).toBeGreaterThanOrEqual(4);
+  });
+
   test('someone matched with a visitor who has left gets the pretend partner instead', async () => {
     const ben = await rider(h, 'Ben');
     const gone = await post(h, ben, trip('trinity', 'dub'));
