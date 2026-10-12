@@ -5,6 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { AppState, Platform } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { WebFrame } from '../components/WebFrame';
 import { ApiError } from '../lib/api';
 import { AuthProvider, useAuth } from '../lib/auth';
 import { StripeRoot } from '../lib/StripeRoot';
@@ -46,22 +47,24 @@ function Navigation() {
   return (
     <ThemeProvider value={theme}>
       <StatusBar style={dark ? 'light' : 'dark'} />
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.bg } }}>
-        <Stack.Screen name="(app)" />
-        <Stack.Screen name="(auth)" />
-        <Stack.Screen
-          name="demo-privacy"
-          options={{
-            headerShown: true,
-            title: 'Privacy',
-            presentation: 'modal',
-            headerShadowVisible: false,
-            headerStyle: { backgroundColor: c.bg },
-            headerTintColor: c.ink,
-            headerBackButtonDisplayMode: 'minimal',
-          }}
-        />
-      </Stack>
+      <WebFrame>
+        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.bg } }}>
+          <Stack.Screen name="(app)" />
+          <Stack.Screen name="(auth)" />
+          <Stack.Screen
+            name="demo-privacy"
+            options={{
+              headerShown: true,
+              title: 'Privacy',
+              presentation: 'modal',
+              headerShadowVisible: false,
+              headerStyle: { backgroundColor: c.bg },
+              headerTintColor: c.ink,
+              headerBackButtonDisplayMode: 'minimal',
+            }}
+          />
+        </Stack>
+      </WebFrame>
     </ThemeProvider>
   );
 }

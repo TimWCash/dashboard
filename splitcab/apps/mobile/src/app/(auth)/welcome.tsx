@@ -1,7 +1,7 @@
 import { formatMoney } from '@splitcab/core';
 import { router } from 'expo-router';
 import { Image, StyleSheet, View } from 'react-native';
-import { AppText, Button, Card, Note, Screen } from '../../components/ui';
+import { AppText, Button, Card, Note, Pill, Screen } from '../../components/ui';
 import { DEMO, DEMO_SHARED } from '../../lib/demo';
 import { useConfig } from '../../lib/queries';
 import { space, useTheme } from '../../lib/theme';
@@ -26,12 +26,23 @@ export default function Welcome() {
         </>
       }
     >
-      <View style={{ gap: space.md, paddingTop: space.xl }}>
-        <View style={[styles.mark, { backgroundColor: c.accent }]} accessibilityLabel="SplitCab">
-          <Image source={require('../../../assets/splash-icon.png')} style={{ width: 40, height: 40 }} />
+      <View style={{ gap: space.md, paddingTop: space.lg }}>
+        <View style={styles.brand}>
+          <View style={[styles.mark, { backgroundColor: c.accent }]}>
+            <Image source={require('../../../assets/splash-icon.png')} style={{ width: 28, height: 28 }} />
+          </View>
+          <AppText style={styles.wordmark}>SplitCab</AppText>
+          {DEMO ? (
+            <View style={{ marginLeft: 'auto' }}>
+              <Pill label="Demo" />
+            </View>
+          ) : null}
         </View>
-        <AppText variant="hero" accessibilityRole="header">
+        <AppText variant="hero" accessibilityRole="header" style={{ marginTop: space.lg }}>
           Share the taxi.{'\n'}Split the fare.
+        </AppText>
+        <AppText variant="body" muted>
+          Get matched with someone heading your way, share one taxi and each pay less.
         </AppText>
       </View>
       <Card>
@@ -62,8 +73,8 @@ export default function Welcome() {
       {DEMO ? (
         <Note>
           {DEMO_SHARED
-            ? "This is a demo. Use any Irish mobile number: no text is sent and no card is charged. Try it with a friend on another phone and you'll be matched with each other. If nobody else is looking, a pretend traveller joins after a moment."
-            : "This is a demo. Use any Irish mobile number: no text is sent and no card is charged. You'll be matched with a pretend traveller, and everything stays in this browser."}
+            ? "Use any Irish mobile number: no text is sent and nothing is charged. Try it with a friend on another phone and you'll be matched with each other; on your own, a pretend traveller joins after a moment."
+            : "Use any Irish mobile number: no text is sent and nothing is charged. You'll be matched with a pretend traveller, and everything stays in this browser."}
         </Note>
       ) : null}
     </Screen>
@@ -71,7 +82,9 @@ export default function Welcome() {
 }
 
 const styles = StyleSheet.create({
-  mark: { width: 48, height: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  brand: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  mark: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  wordmark: { fontSize: 20, lineHeight: 24, fontWeight: '800', letterSpacing: -0.4 },
   step: { flexDirection: 'row', gap: space.md },
   num: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
 });

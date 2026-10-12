@@ -70,7 +70,7 @@ export default function Code() {
           Enter the code
         </AppText>
         <AppText variant="body" muted>
-          We texted a 6-digit code to {formatPhone(phone)}.
+          {DEMO ? `No text is sent in the demo. Your code for ${formatPhone(phone)} is below.` : `We texted a 6-digit code to ${formatPhone(phone)}.`}
         </AppText>
         <Field
           label="Code"
@@ -89,7 +89,7 @@ export default function Code() {
           testID="code-input"
           style={{ letterSpacing: 6, fontSize: 22 }}
         />
-        {devCode ? <Note>{`${DEMO ? 'Demo' : 'Development server'}: no text is sent. Your code is ${devCode}.`}</Note> : null}
+        {devCode ? <Note>{DEMO ? `Your code is ${devCode}.` : `Development server: no text is sent. Your code is ${devCode}.`}</Note> : null}
       </Screen>
     </KeyboardAvoidingView>
   );
