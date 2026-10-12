@@ -244,6 +244,9 @@ function Proposed({ trip, match, onError }: Section & { match: MatchView }) {
             <Countdown until={match.expiresAt} prefix="Respond within " />
             {match.partnerAccepted ? <AppText variant="small" muted>{` · ${name} has said yes`}</AppText> : null}
           </Row>
+          <AppText variant="small" muted style={{ textAlign: 'center' }}>
+            {`If you both accept, the ${money(match.plan.you.fee)} is charged. It's refunded if ${name} cancels, but not if you do.`}
+          </AppText>
         </>
       )}
     </>

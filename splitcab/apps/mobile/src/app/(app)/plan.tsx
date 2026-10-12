@@ -69,6 +69,8 @@ export default function Plan() {
         time: draft.time.toISOString(),
         flexMin: draft.flexMin,
         seats: draft.seats,
+        // The rider agrees below the button, which is what the law asks for before a paid service can start.
+        startNow: true,
       };
       let trip = await postTrip.mutateAsync(input);
       if (trip.paymentAction && (await approveHold(config.data, trip.paymentAction.clientSecret))) {
@@ -122,6 +124,9 @@ export default function Plan() {
             disabled={!ready || !config.data}
             accessibilityHint={`Places a ${fee} hold on your card, only charged if you're matched`}
           />
+          <AppText variant="small" muted style={{ textAlign: 'center' }}>
+            {`This asks us to start looking straight away. Once you're matched and you both accept, the ${fee} is charged and, as the service is then complete, you can't cancel it for a refund.`}
+          </AppText>
         </>
       }
     >

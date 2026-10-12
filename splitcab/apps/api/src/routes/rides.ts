@@ -13,6 +13,9 @@ const tripInput = z.object({
   time: z.iso.datetime({ offset: true }),
   flexMin: z.number().int().min(5).max(120),
   seats: z.number().int().min(1).max(3),
+  // Consumer law: a service paid for within the 14-day cancellation period may only start once the person asks for
+  // that, and the right is lost once it's complete. The app asks before posting.
+  startNow: z.literal(true, { error: 'Confirm you want us to start looking for a match straight away.' }),
 });
 
 export function rideRoutes(app: FastifyInstance, deps: Deps, rides: RideService) {

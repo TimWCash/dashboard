@@ -6,6 +6,7 @@ import { KeyboardAvoidingView, Platform } from 'react-native';
 import { AppText, Button, Field, Note, Screen } from '../../components/ui';
 import { api, ApiError } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
+import { DEMO } from '../../lib/demo';
 import { useConfig } from '../../lib/queries';
 
 export default function Profile() {
@@ -43,10 +44,20 @@ export default function Profile() {
       <Screen
         footer={
           <>
-            <AppText variant="small" muted>
-              By tapping {action}, you confirm you're 18 or over and agree to our {link('Terms of Service', config.data?.termsUrl)} and{' '}
-              {link('Privacy Policy', config.data?.privacyUrl)}.
-            </AppText>
+            {DEMO ? (
+              <AppText variant="small" muted>
+                By tapping {action}, you confirm you're 18 or over and agree to how{' '}
+                <AppText variant="small" style={{ textDecorationLine: 'underline', fontWeight: '600' }} onPress={() => router.push('/demo-privacy')} accessibilityRole="link">
+                  this demo uses your data
+                </AppText>
+                .
+              </AppText>
+            ) : (
+              <AppText variant="small" muted>
+                By tapping {action}, you confirm you're 18 or over and agree to our {link('Terms of Service', config.data?.termsUrl)} and{' '}
+                {link('Privacy Policy', config.data?.privacyUrl)}.
+              </AppText>
+            )}
             <Button title={action} onPress={save} loading={busy} disabled={!name.trim()} />
           </>
         }

@@ -56,6 +56,20 @@ describe('posting a trip', () => {
     }
   });
 
+  test('starts looking only when the rider asks to, and records when they did', async () => {
+    const ana = await rider(h, 'Ana');
+    const { startNow: _, ...withoutConsent } = trip('stephens-green', 'dub');
+    const refused = await h.call('POST', '/v1/trips', { token: ana.token, body: withoutConsent });
+    expect(refused.status).toBe(400);
+    expect(refused.json.error.message).toMatch(/start looking for a match straight away/);
+
+    const t = await post(h, ana, trip('stephens-green', 'dub'));
+    const { rows } = await db.query<{ start_now_at: Date }>('SELECT start_now_at FROM trips WHERE id = $1', [t.id]);
+    expect(rows[0]!.start_now_at.getTime()).toBe(h.clock.now);
+    const exported = await h.call('GET', '/v1/me/export', { token: ana.token });
+    expect(exported.json.trips[0].start_now_at).toBeTruthy();
+  });
+
   test('limits how many trips one person can post in a day', async () => {
     const ana = await rider(h, 'Ana');
     for (let i = 0; i < 20; i++) {

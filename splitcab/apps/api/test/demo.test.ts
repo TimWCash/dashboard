@@ -101,6 +101,13 @@ describe('the public demo', () => {
     expect(verify.status).toBe(200);
   });
 
+  test('the app is told who runs the demo, for its privacy notice', async () => {
+    expect((await h.call('GET', '/v1/config')).json.demo).toEqual({ operator: null });
+    const named = await harness(db, { env: { ...demo, DEMO_OPERATOR: 'Example Ltd' } });
+    expect((await named.call('GET', '/v1/config')).json.demo).toEqual({ operator: 'Example Ltd' });
+    expect((await (await harness(db)).call('GET', '/v1/config')).json.demo).toBeNull();
+  });
+
   test('demo accounts are deleted after a day without use', async () => {
     const ana = await rider(h, 'Ana');
     h.advance(23 * 60 * MIN);

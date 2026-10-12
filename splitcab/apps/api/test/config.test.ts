@@ -46,6 +46,15 @@ describe('rate limit keys', () => {
   });
 });
 
+describe('blank settings', () => {
+  test('count as unset, as left in a copy of .env.example', () => {
+    const c = loadConfig({ DATABASE_URL: 'postgres://db/splitcab', JWT_SECRET: 'a-secret-that-is-long-enough-for-hs256', REVIEW_CODE: '', DEMO_OPERATOR: '', DATABASE_SSL_CA: '' });
+    expect(c.REVIEW_CODE).toBeUndefined();
+    expect(c.DEMO_OPERATOR).toBeUndefined();
+    expect(c.DATABASE_SSL_CA).toBeUndefined();
+  });
+});
+
 describe('database certificate', () => {
   test('can be given on one line, with \\n for line breaks', () => {
     const base = { DATABASE_URL: 'postgres://db/splitcab', JWT_SECRET: 'a-secret-that-is-long-enough-for-hs256' };

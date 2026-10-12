@@ -49,6 +49,18 @@ function Navigation() {
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.bg } }}>
         <Stack.Screen name="(app)" />
         <Stack.Screen name="(auth)" />
+        <Stack.Screen
+          name="demo-privacy"
+          options={{
+            headerShown: true,
+            title: 'Privacy',
+            presentation: 'modal',
+            headerShadowVisible: false,
+            headerStyle: { backgroundColor: c.bg },
+            headerTintColor: c.ink,
+            headerBackButtonDisplayMode: 'minimal',
+          }}
+        />
       </Stack>
     </ThemeProvider>
   );

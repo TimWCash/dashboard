@@ -27,6 +27,7 @@ export function meRoutes(app: FastifyInstance, deps: Deps, rides: RideService) {
     termsUrl: deps.config.TERMS_URL,
     privacyUrl: deps.config.PRIVACY_URL,
     supportEmail: deps.config.SUPPORT_EMAIL,
+    demo: deps.config.DEMO_MODE ? { operator: deps.config.DEMO_OPERATOR ?? null } : null,
   }));
 
   app.get('/v1/me', auth, async (req): Promise<MeView> => meView(await getUser(deps.db, req.userId), deps.config.TERMS_VERSION));
@@ -95,7 +96,7 @@ export function meRoutes(app: FastifyInstance, deps: Deps, rides: RideService) {
         ridesCompleted: user.rides_completed,
       },
       trips: await q(
-        `SELECT id, origin_label, origin_lat, origin_lng, dest_label, dest_lat, dest_lng, time_mode, target_time, flex_min, seats, status, created_at
+        `SELECT id, origin_label, origin_lat, origin_lng, dest_label, dest_lat, dest_lng, time_mode, target_time, flex_min, seats, status, start_now_at, created_at
          FROM trips WHERE user_id = $1 ORDER BY created_at`,
       ),
       payments: await q('SELECT id, trip_id, amount, currency, status, created_at FROM payments WHERE user_id = $1 ORDER BY created_at'),

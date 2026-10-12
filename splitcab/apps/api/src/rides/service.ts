@@ -123,8 +123,8 @@ export class RideService {
       if ((today[0]?.n ?? 0) >= MAX_TRIPS_PER_DAY) throw new AppError(429, 'rate_limited', "You've posted a lot of trips today. Try again tomorrow.");
       const { rows } = await tx.query<{ id: string }>(
         `INSERT INTO trips (user_id, origin_label, origin_lat, origin_lng, dest_label, dest_lat, dest_lng, time_mode, target_time,
-                            flex_min, seats, status, search_until, solo_fare, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'pending_payment', $12, $13, $14, $14) RETURNING id`,
+                            flex_min, seats, status, search_until, solo_fare, created_at, updated_at, start_now_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'pending_payment', $12, $13, $14, $14, $14) RETURNING id`,
         [
           userId,
           origin.label,

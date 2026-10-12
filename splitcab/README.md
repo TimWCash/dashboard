@@ -69,6 +69,7 @@ The app's web build, with sign-in codes shown on screen and simulated cards. Two
 | `DEMO_MODE`, `OTP_PROVIDER` | `true`, `demo` (the function sets `NODE_ENV=production` itself; don't add it, as npm would then skip the build tools) |
 | `PAYMENTS_PROVIDER`, `PUSH_PROVIDER`, `PLACES_PROVIDER` | `test`, `log`, `builtin` |
 | `TRUST_PROXY_HOPS`, `DATABASE_POOL_MAX` | `1`, `2` |
+| `DEMO_OPERATOR`, `SUPPORT_EMAIL` | Who runs the demo and how to reach them, shown in its privacy notice ("How this demo uses your data"). |
 
 `DEMO_MODE` refuses live Stripe keys and Twilio, and its sign-in codes are derived from `JWT_SECRET`, so no SMS is ever sent. Migrations run when the function starts. Retention rules run every 6 hours, as in production, except that demo accounts are deleted after a day without use.
 

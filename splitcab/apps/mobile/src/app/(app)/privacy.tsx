@@ -8,6 +8,7 @@ import { AppText, Button, Card, LinkRow, Note, Screen } from '../../components/u
 import { api, ApiError, setSession } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 import { confirmDestructive } from '../../lib/confirm';
+import { DEMO, DEMO_SHARED } from '../../lib/demo';
 import { exportMyData } from '../../lib/exportData';
 import { useConfig } from '../../lib/queries';
 import { space } from '../../lib/theme';
@@ -24,7 +25,12 @@ export default function Privacy() {
   const fail = (e: unknown, fallback: string) => setMessage({ tone: 'bad', text: e instanceof ApiError ? e.message : fallback });
 
   const kept: [string, string][] = [
-    ['Your account: name, mobile number, Revtag', `Until you delete it, or after ${years(RETENTION.inactiveAccountDays)} years without using SplitCab`],
+    [
+      'Your account: name, mobile number, Revtag',
+      DEMO_SHARED
+        ? 'Until you delete it, or after a day without using this demo'
+        : `Until you delete it, or after ${years(RETENTION.inactiveAccountDays)} years without using SplitCab`,
+    ],
     ['Chat messages', `${RETENTION.messagesDays} days`],
     ['Exact pickup and drop-off places', `${years(RETENTION.exactPlacesDays)} year, then only the rough area`],
     ['Trips, payments and receipts', `${years(RETENTION.recordsDays)} years, as Irish tax law requires`],
@@ -102,7 +108,11 @@ export default function Privacy() {
           month. If you're unhappy with our answer, you can complain to the Data Protection Commission.
         </AppText>
         <Button title="Email us about your data" variant="ghost" icon="mail-outline" onPress={emailUs} />
-        <Button title="Privacy Policy" variant="link" onPress={() => config.data && WebBrowser.openBrowserAsync(config.data.privacyUrl)} />
+        {DEMO ? (
+          <Button title="How this demo uses your data" variant="link" onPress={() => router.push('/demo-privacy')} />
+        ) : (
+          <Button title="Privacy Policy" variant="link" onPress={() => config.data && WebBrowser.openBrowserAsync(config.data.privacyUrl)} />
+        )}
         <Button title="Data Protection Commission" variant="link" onPress={() => WebBrowser.openBrowserAsync('https://www.dataprotection.ie')} />
       </Card>
 

@@ -17,7 +17,15 @@ export default function Welcome() {
   const config = useConfig();
   const fee = formatMoney(config.data?.matchFee ?? 199);
   return (
-    <Screen edges={['top', 'bottom']} footer={<Button title="Continue with your phone number" onPress={() => router.push('/phone')} />}>
+    <Screen
+      edges={['top', 'bottom']}
+      footer={
+        <>
+          <Button title="Continue with your phone number" onPress={() => router.push('/phone')} />
+          {DEMO ? <Button title="How this demo uses your data" variant="link" onPress={() => router.push('/demo-privacy')} /> : null}
+        </>
+      }
+    >
       <View style={{ gap: space.md, paddingTop: space.xl }}>
         <View style={[styles.mark, { backgroundColor: c.accent }]} accessibilityLabel="SplitCab">
           <Image source={require('../../../assets/splash-icon.png')} style={{ width: 40, height: 40 }} />

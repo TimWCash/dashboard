@@ -69,6 +69,8 @@ export interface AppConfig {
   termsUrl: string;
   privacyUrl: string;
   supportEmail: string;
+  // Set only on the public demo: who runs it, for its privacy notice.
+  demo: { operator: string | null } | null;
 }
 
 // ---- places ------------------------------------------------------------------------
@@ -117,6 +119,9 @@ export interface TripInput {
   time: ISODate;
   flexMin: number;
   seats: number;
+  // The rider asked us to start looking straight away, knowing that once they and their match have both accepted,
+  // the service is complete and the match fee is no longer covered by the 14-day right to cancel.
+  startNow: true;
 }
 
 export interface RiderPlanView {

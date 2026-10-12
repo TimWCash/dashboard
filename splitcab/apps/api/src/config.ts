@@ -54,6 +54,8 @@ const schema = z.object({
   // matched within DEMO_PARTNER_AFTER_S, and a button to finish a ride early. Never with live Stripe keys.
   DEMO_MODE: bool.default(false),
   DEMO_PARTNER_AFTER_S: z.coerce.number().int().min(0).max(3600).default(45),
+  // Who runs the public demo, named in its privacy notice (a person or company). SUPPORT_EMAIL is the contact.
+  DEMO_OPERATOR: z.string().trim().min(1).max(120).optional(),
   // Extra words the chat filter rejects, comma-separated.
   BLOCKED_TERMS: z.string().default(''),
 
@@ -82,7 +84,9 @@ const schema = z.object({
 export type AppConfig = z.infer<typeof schema>;
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
-  const parsed = schema.safeParse(env);
+  // A setting left blank (`REVIEW_CODE=` in a .env file) means unset, not an empty value to validate.
+  const set = Object.fromEntries(Object.entries(env).filter(([, value]) => value !== ''));
+  const parsed = schema.safeParse(set);
   if (!parsed.success) {
     const issues = parsed.error.issues.map((i) => `  ${i.path.join('.')}: ${i.message}`).join('\n');
     throw new Error(`Invalid configuration:\n${issues}`);

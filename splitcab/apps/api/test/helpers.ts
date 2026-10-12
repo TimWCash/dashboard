@@ -108,6 +108,7 @@ export function trip(from: string, to: string, extra: Partial<Omit<TripInput, 't
     time: new Date(START + inMin * MIN).toISOString(),
     flexMin: 30,
     seats: 1,
+    startNow: true,
     ...rest,
   };
 }

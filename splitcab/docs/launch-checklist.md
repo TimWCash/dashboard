@@ -11,6 +11,12 @@ Everything the code can't do for you, in roughly the order to do it. Items marke
 - [ ] **Decision:** VAT. The €1.99 match fee is a service sold in Ireland; ask your accountant whether it includes VAT and register when required. Put the company's legal name, address and VAT number in `RECEIPT_COMPANY_DETAILS` so they're printed on riders' receipts.
 - [ ] Public liability insurance for a platform introducing strangers.
 - [ ] GDPR: work through [`gdpr.md`](gdpr.md). It has the records of processing, retention schedule, processor list, how to handle data requests and breaches, and a DPIA starter. Sign data processing agreements with Stripe, Twilio, Expo, Google and your host.
+- [ ] Register the company's beneficial owners (RBO) within 5 months of incorporation.
+- [ ] Consumer law (Consumer Rights Act 2022): prices include VAT, and the company's legal name, registered address, CRO number, email and VAT number appear on the website and in the app (also an E-Commerce Regulations requirement). The app already asks riders to confirm they want matching to start straight away each time they post, and records when, so the 14-day right to cancel ends once both accept; have the solicitor check that wording.
+- [ ] Digital Services Act: the app hosts chat between users. Publish a single point of contact for users and authorities, explain in the Terms how reports are handled, and give a reason whenever you act on a report. Small and micro companies are exempt from most of the extra online-platform duties. The Irish regulator is Coimisiún na Meán.
+- [ ] Insurance: public and product liability, cyber, and professional indemnity.
+- [ ] Accessibility: the European Accessibility Act covers consumer e-commerce services from June 2025, with an exemption for microenterprises. Keep the app and site accessible anyway; the review fixes are already in.
+- [ ] The public demo collects real names and numbers, so it needs a named controller: set `DEMO_OPERATOR` (your name or the company's) and a `SUPPORT_EMAIL` that reaches you on the demo's Vercel project. The app shows them in "How this demo uses your data".
 
 ## 2. Website and email
 
@@ -30,7 +36,7 @@ Everything the code can't do for you, in roughly the order to do it. Items marke
 
 ## 4. Third-party services
 
-- [ ] **Twilio Verify:** create a Verify service, enable Fraud Guard (SMS pumping protection), and set an alphanumeric sender ID for Ireland. Under Geo permissions allow SMS only to the countries in `ALLOWED_PHONE_COUNTRIES` (Ireland and the UK by default), so a bug can't run up SMS charges elsewhere.
+- [ ] **Twilio Verify:** create a Verify service, enable Fraud Guard (SMS pumping protection), and set an alphanumeric sender ID for Ireland. Register that sender ID with ComReg's SMS Sender ID Registry, or Irish networks may label the codes as likely scams. Under Geo permissions allow SMS only to the countries in `ALLOWED_PHONE_COUNTRIES` (Ireland and the UK by default), so a bug can't run up SMS charges elsewhere.
 - [ ] **Stripe:** activate an Irish account and switch to live keys. Add a webhook endpoint `https://<api>/v1/webhooks/stripe` for `payment_intent.amount_capturable_updated`, `payment_intent.payment_failed`, `payment_intent.succeeded`, `payment_intent.canceled`, `charge.refunded` and `setup_intent.succeeded`. Set the statement descriptor. Test 3-D Secure with Stripe's test cards before going live.
 - [ ] **Google Maps Platform (optional but recommended):** enable Places API (New), create a key restricted to your API servers, set `PLACES_PROVIDER=google`, and add a billing alert.
 - [ ] **Trip map on Android (required):** enable the Maps SDK for Android, create a key restricted to the package `ie.splitcab.app` and your signing certificates' SHA-1 (Play App Signing and upload key), and set it as the EAS secret `GOOGLE_MAPS_ANDROID_API_KEY`. Without it the Android map is blank. iPhone uses Apple Maps and needs nothing.
