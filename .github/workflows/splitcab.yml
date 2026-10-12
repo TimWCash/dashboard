@@ -67,10 +67,11 @@ jobs:
         run: npm run demo:build
         env:
           CI: 1
-      - name: Build the shared demo (app and API function)
+      - name: Build the shared demo (app, API function and website)
         run: npm run demo:build:server
         env:
           CI: 1
+          SITE_HOSTS: splitcab-ie.vercel.app
       - name: Build the website
         run: npm run build -w @splitcab/site
 

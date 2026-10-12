@@ -16,6 +16,8 @@ npm run dev -w @splitcab/site      # http://localhost:5173
 npm run build -w @splitcab/site    # static files in apps/site/dist
 ```
 
-Deploy `dist` to any static host that serves `privacy.html` at `/privacy` and so on. On Vercel, create a project with its root directory set to `splitcab/apps/site`; `vercel.json` handles the rest. The page loads nothing from other sites: no fonts, analytics or trackers.
+Deploy `dist` to any static host that serves `privacy.html` at `/privacy` and so on. On Vercel, create a project with its root directory set to `splitcab/apps/site`; `vercel.json` handles the rest.
+
+For now it's live at https://splitcab-ie.vercel.app from the demo's Vercel project instead: with `SITE_HOSTS=splitcab-ie.vercel.app`, the demo build (`apps/demo/build.mjs`) also builds this site and serves it to that address. When it gets a project of its own, remove the address and `SITE_HOSTS` from the demo's project first. The page loads nothing from other sites: no fonts, analytics or trackers.
 
 **The privacy policy and terms name Tim Cashman as running SplitCab**, with a personal contact address, until a company exists. They haven't been reviewed by a solicitor yet. Once the company is registered, replace the name with its legal name, registered address and CRO number, and change the date at the top of each page you edit.

@@ -22,7 +22,7 @@ Everything the code can't do for you, in roughly the order to do it. Items marke
 
 - [ ] Register the domain and set up the support mailbox.
 - [ ] Add a postal address where you can be reached to the website's Support and Privacy pages: the E-Commerce Regulations require a geographic address, and the pages give only a name and email for now.
-- [ ] Deploy `apps/site` (`npm run build -w @splitcab/site`, then any static host serving `apps/site/dist` with clean URLs; `apps/site/vercel.json` does this on Vercel). Check `/`, `/privacy`, `/terms`, `/support` and `/delete-account` load: both stores link to them. Replace "Coming to the App Store and Google Play" on the landing page with the store badges once the apps are live.
+- [ ] Put the website on the real domain. It's live at https://splitcab-ie.vercel.app for now, served by the demo's Vercel project (`SITE_HOSTS`): add the domain to that project and to `SITE_HOSTS`, or give the site a project of its own (root directory `splitcab/apps/site`; `apps/site/vercel.json` does the rest). Check `/`, `/privacy`, `/terms`, `/support` and `/delete-account` load: both stores link to them. Replace "Coming to the App Store and Google Play" on the landing page with the store badges once the apps are live.
 - [ ] Set `TERMS_URL`, `PRIVACY_URL`, `SUPPORT_EMAIL` on the API and `SITE_URL` for `store.config.js`.
 
 ## 3. Backend

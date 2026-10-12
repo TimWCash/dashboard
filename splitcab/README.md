@@ -70,11 +70,13 @@ The app's web build, with sign-in codes shown on screen and simulated cards. Two
 | `PAYMENTS_PROVIDER`, `PUSH_PROVIDER`, `PLACES_PROVIDER` | `test`, `log`, `builtin` |
 | `TRUST_PROXY_HOPS`, `DATABASE_POOL_MAX` | `1`, `2` |
 | `DEMO_OPERATOR`, `SUPPORT_EMAIL` | Who runs the demo and how to reach them, shown in its privacy notice ("How this demo uses your data"). |
+| `SITE_HOSTS` | Optional. Addresses that get the website (`apps/site`) instead of the demo, comma-separated, e.g. `splitcab-ie.vercel.app`. Add each one to the project's domains too. This serves the website from the demo's project; it can move to a project of its own later (see `apps/site/README.md`). |
 
 `DEMO_MODE` refuses live Stripe keys and Twilio, and its sign-in codes are derived from `JWT_SECRET`, so no SMS is ever sent. Migrations run when the function starts. Retention rules run every 6 hours, as in production, except that demo accounts are deleted after a day without use.
 
 ## Deploying
 
+- **Website:** `apps/site`, live at https://splitcab-ie.vercel.app (served by the demo's Vercel project through `SITE_HOSTS`).
 - **API:** `docker build -f apps/api/Dockerfile .` from this folder. Configure with the variables in `apps/api/.env.example`. It runs migrations on start, serves `/health` and `/ready`, and refuses to start in production with development stand-ins.
 - **Mobile:** EAS Build and Submit. See [`apps/mobile/store/README.md`](apps/mobile/store/README.md).
 - **Before launch:** work through [`docs/launch-checklist.md`](docs/launch-checklist.md): company, legal review, Stripe/Twilio/Google/Expo setup, store accounts, and the operations you'll need on day one.

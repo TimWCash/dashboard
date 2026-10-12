@@ -6,8 +6,10 @@
 //                              splitcab/.vercel/output; see ../../vercel.json and docs in the README.
 //   npm run demo:build:vercel  What Vercel runs: the shared version when the project has a DATABASE_URL,
 //                              otherwise the one-person version, both in the Build Output API format.
+// In the Build Output API format, SITE_HOSTS (comma-separated, e.g. splitcab-ie.vercel.app) also serves the
+// website (apps/site) from the same deployment: requests for those hosts get the website, any other host the demo.
 import { spawnSync } from 'node:child_process';
-import { copyFile, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { copyFile, cp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as esbuild from 'esbuild';
@@ -19,6 +21,7 @@ const mobile = path.resolve(here, '../mobile');
 const vercel = process.argv.includes('--vercel');
 const server = process.argv.includes('--server') || (vercel && Boolean(process.env.DATABASE_URL));
 const IN_PAGE_API_URL = 'https://api.splitcab.demo';
+const siteHosts = (process.env.SITE_HOSTS ?? '').split(',').map((h) => h.trim()).filter(Boolean);
 
 const out = server || vercel ? path.join(root, '.vercel/output') : path.join(here, 'dist');
 const staticDir = server || vercel ? path.join(out, 'static') : out;
@@ -113,8 +116,29 @@ if (server) {
   console.log(`Demo (in the browser) built in ${path.relative(process.cwd(), out)}`);
 }
 
-// Vercel's routing: the API (shared version only), then files, then the app for every other path.
+// 4. The website, in static/_site.
+if ((server || vercel) && siteHosts.length) {
+  const built = spawnSync('npm', ['run', 'build', '-w', '@splitcab/site'], { cwd: root, stdio: 'inherit' });
+  if (built.status !== 0) process.exit(built.status ?? 1);
+  await cp(path.join(root, 'apps/site/dist'), path.join(staticDir, '_site'), { recursive: true });
+}
+
+// Vercel's routing: the website's hosts to the website, then the API (shared version only), then files, then
+// the app for every other path.
 if (server || vercel) {
-  const routes = [...(server ? [{ src: '^/v1/(.*)$', dest: '/api?path=$1' }] : []), { handle: 'filesystem' }, { src: '^/(.*)$', dest: '/index.html' }];
+  const site = siteHosts.flatMap((host) => {
+    const has = [{ type: 'host', value: host }];
+    return [
+      { src: '^/$', has, dest: '/_site/index.html' },
+      { src: '^/(privacy|terms|support|delete-account)/?$', has, dest: '/_site/$1.html' },
+      { src: '^/(.*)$', has, dest: '/_site/$1' },
+    ];
+  });
+  const routes = [
+    ...site,
+    ...(server ? [{ src: '^/v1/(.*)$', dest: '/api?path=$1' }] : []),
+    { handle: 'filesystem' },
+    { src: '^/(.*)$', dest: '/index.html' },
+  ];
   await writeFile(path.join(out, 'config.json'), JSON.stringify({ version: 3, routes }, null, 2));
 }
