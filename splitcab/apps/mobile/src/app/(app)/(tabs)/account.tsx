@@ -8,6 +8,7 @@ import { AppText, Avatar, Button, Card, Icon, LinkRow, Note, Row } from '../../.
 import { api, ApiError, setSession } from '../../../lib/api';
 import { useAuth } from '../../../lib/auth';
 import { confirmDestructive } from '../../../lib/confirm';
+import { DEMO } from '../../../lib/demo';
 import { formatPhone } from '../../../lib/format';
 import { useCardPayments } from '../../../lib/payments';
 import { pushStatus, registerForPush, type PushStatus } from '../../../lib/push';
@@ -118,8 +119,14 @@ export default function Account() {
       <Card style={{ gap: 0, paddingVertical: space.xs }}>
         <LinkRow icon="help-circle-outline" label="How SplitCab works" onPress={() => router.push('/how-it-works')} />
         <LinkRow icon="mail-outline" label="Contact support" onPress={contact} />
-        <LinkRow icon="document-text-outline" label="Terms of Service" onPress={() => config.data && WebBrowser.openBrowserAsync(config.data.termsUrl)} />
-        <LinkRow icon="lock-closed-outline" label="Privacy Policy" onPress={() => config.data && WebBrowser.openBrowserAsync(config.data.privacyUrl)} />
+        {DEMO ? (
+          <LinkRow icon="document-text-outline" label="This demo and your data" onPress={() => router.push('/demo-privacy')} />
+        ) : (
+          <>
+            <LinkRow icon="document-text-outline" label="Terms of Service" onPress={() => config.data && WebBrowser.openBrowserAsync(config.data.termsUrl)} />
+            <LinkRow icon="lock-closed-outline" label="Privacy Policy" onPress={() => config.data && WebBrowser.openBrowserAsync(config.data.privacyUrl)} />
+          </>
+        )}
         <LinkRow icon="shield-checkmark-outline" label="Privacy & your data" onPress={() => router.push('/privacy')} />
       </Card>
 

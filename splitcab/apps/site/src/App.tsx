@@ -217,7 +217,7 @@ export default function App() {
 
       <footer className="border-t border-border">
         <div className="mx-auto flex max-w-6xl flex-col gap-4 px-6 py-10 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-          <p>© SplitCab</p>
+          <p>© 2026 SplitCab · Run by Tim Cashman</p>
           <nav aria-label="Legal" className="flex flex-wrap gap-x-5 gap-y-2">
             <a href="/support" className="hover:text-foreground">Support</a>
             <a href="/privacy" className="hover:text-foreground">Privacy</a>
