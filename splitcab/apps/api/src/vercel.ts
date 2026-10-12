@@ -15,7 +15,8 @@ let lastTick = 0;
 let lastPurge = 0;
 
 async function start(): Promise<Built> {
-  const config = loadConfig();
+  // NODE_ENV isn't set as a project variable: it would apply to the build too, where npm then skips the build tools.
+  const config = loadConfig({ NODE_ENV: 'production', ...process.env });
   const db = createPool(config);
   await applyMigrations(db, migrations);
   const built = await buildApp({ config, db });
