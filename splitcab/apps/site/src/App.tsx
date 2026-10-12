@@ -2,6 +2,7 @@ import { CarTaxiFront, Lock, QrCode, ReceiptText, ShieldCheck, Wallet } from "lu
 import type { ReactNode } from "react"
 import { Button } from "@/components/ui/button"
 import { Hero } from "@/components/ui/hero-1"
+import { FareEstimator } from "@/components/fare-estimator"
 
 // The public demo: the real app in the browser, where two people can match each other.
 const DEMO_URL = "https://splitcab-demo.vercel.app"
@@ -104,6 +105,9 @@ export default function App() {
             <a href="#how" className="hidden rounded-md px-2 py-1 text-sm text-muted-foreground hover:text-foreground sm:inline">
               How it works
             </a>
+            <a href="#prices" className="hidden rounded-md px-2 py-1 text-sm text-muted-foreground hover:text-foreground sm:inline">
+              Prices
+            </a>
             <a href="#faq" className="hidden rounded-md px-2 py-1 text-sm text-muted-foreground hover:text-foreground sm:inline">
               Questions
             </a>
@@ -133,6 +137,10 @@ export default function App() {
             className="max-w-[320px] [transform:rotateX(14deg)]"
           />
         </Hero>
+
+        <section id="prices" aria-label="Prices" className="scroll-mt-16 border-y border-border bg-card py-8 md:py-12">
+          <FareEstimator demoUrl={DEMO_URL} />
+        </section>
 
         <section id="how" aria-labelledby="how-title" className="mx-auto max-w-6xl scroll-mt-20 px-6 py-20 md:py-28">
           <h2 id="how-title" className="text-center text-3xl font-semibold tracking-tight md:text-5xl">

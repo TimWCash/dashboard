@@ -4,8 +4,10 @@ import {
   estimateFare,
   findBestMatch,
   haversineKm,
+  irishTime,
   planSharedRide,
   placeById,
+  sameTripQuote,
   searchKnownPlaces,
   searchDeadline,
   settleFare,
@@ -75,6 +77,32 @@ describe('fares', () => {
   test('settlement applies the agreed ratio to the real fare', () => {
     const plan = { fare: 4000, riders: { a: { share: 2500 }, b: { share: 1500 } } } as never;
     expect(settleFare(3000, plan, 'b')).toBe(1125);
+  });
+});
+
+describe('website estimate', () => {
+  test('two riders making the same trip each pay half of one meter with an extra passenger', () => {
+    const q = sameTripQuote(p('stephens-green'), p('dub'), NOW);
+    const total = estimateFare({ km: q.km, minutes: q.minutes, at: NOW, passengers: 2 });
+    expect(Math.abs(q.share * 2 - total)).toBeLessThanOrEqual(1);
+    expect(q.share).toBeLessThan(q.fare);
+    expect(q.savings).toBe(q.fare - q.share - CONFIG.matchFee);
+    expect(q.savings).toBeGreaterThan(0);
+  });
+
+  test('a night trip is quoted at the night rate', () => {
+    const day = sameTripQuote(p('stephens-green'), p('dub'), NOW);
+    const night = sameTripQuote(p('stephens-green'), p('dub'), Date.UTC(2026, 9, 13, 22, 0));
+    expect(night.tariff).toBe('premium');
+    expect(night.fare).toBeGreaterThan(day.fare);
+  });
+
+  test('Irish time is right in summer and winter time, and next to the clock change', () => {
+    expect(irishTime('2026-10-13', '10:00')).toBe(NOW);
+    expect(irishTime('2026-12-01', '10:00')).toBe(Date.UTC(2026, 11, 1, 10, 0));
+    // Clocks go back at 02:00 IST on 25 October 2026; 03:00 that morning is winter time.
+    expect(irishTime('2026-10-25', '03:00')).toBe(Date.UTC(2026, 9, 25, 3, 0));
+    expect(irishTime('2026-10-25', '00:30')).toBe(Date.UTC(2026, 9, 24, 23, 30));
   });
 });
 

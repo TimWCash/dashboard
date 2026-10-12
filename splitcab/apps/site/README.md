@@ -4,8 +4,9 @@ splitcab.ie: the landing page plus the static pages the app stores require.
 
 | Path | What it is |
 |---|---|
-| `src/App.tsx` | The landing page: hero, how it works, why SplitCab, the fee, questions. Links to the live demo. |
-| `src/components/ui/` | shadcn/ui components: `button.tsx` and `hero-1.tsx` |
+| `src/App.tsx` | The landing page: hero, what you'd pay, how it works, why SplitCab, the fee, questions. Links to the live demo. |
+| `src/components/fare-estimator.tsx` | "See what you'd pay": pick a pickup, drop-off and time, and see the fare alone and each person's share, from `@splitcab/core`'s fare model at NTA rates. It knows the places in `packages/core/src/places.ts`. |
+| `src/components/ui/` | shadcn/ui components: `button.tsx`, `hero-1.tsx` and `ride-booking-form.tsx` (the trip form, animated with framer-motion, which respects reduced motion) |
 | `public/privacy.html`, `terms.html`, `support.html`, `delete-account.html` | Plain HTML pages, copied as they are. The app and store listings link to `/privacy`, `/terms`, `/support` and `/delete-account`. |
 | `public/screens/` | App screenshots used on the landing page |
 

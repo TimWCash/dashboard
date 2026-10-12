@@ -68,6 +68,42 @@ export function splitProportional(total: number, soloFares: number[]): number[] 
   return shares;
 }
 
+export interface SameTripQuote extends SoloEstimate {
+  // Each rider's share of the one taxi.
+  share: number;
+  matchFee: number;
+  // What each rider saves against going alone, after the match fee.
+  savings: number;
+}
+
+// What a trip costs shared when the other rider makes the same trip: one meter with an extra passenger, split
+// in half. A partner with a different stop adds some distance, so this is the best case; the app quotes the
+// exact shares for a real match.
+export function sameTripQuote(origin: LatLng, destination: LatLng, at: number): SameTripQuote {
+  const solo = soloEstimate(origin, destination, { at });
+  const total = estimateFare({ km: solo.km, minutes: solo.minutes, at, passengers: 2 });
+  const [share = total] = splitProportional(total, [solo.fare, solo.fare]);
+  return { ...solo, share, matchFee: CONFIG.matchFee, savings: solo.fare - share - CONFIG.matchFee };
+}
+
+const zoneParts = (timeZone: string) =>
+  new Intl.DateTimeFormat('en-GB', { timeZone, hourCycle: 'h23', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric' });
+
+// The moment a wall-clock date and time ("2026-10-13", "18:30") happen in Ireland, whatever the device's time zone.
+export function irishTime(date: string, time: string, timeZone: string = CONFIG.timeZone): number {
+  const [y = 0, mo = 1, d = 1] = date.split('-').map(Number);
+  const [h = 0, mi = 0] = time.split(':').map(Number);
+  const wall = Date.UTC(y, mo - 1, d, h, mi);
+  const fmt = zoneParts(timeZone);
+  const offset = (at: number) => {
+    const p = Object.fromEntries(fmt.formatToParts(new Date(at)).map((x) => [x.type, Number(x.value)]));
+    return Date.UTC(p.year ?? 0, (p.month ?? 1) - 1, p.day ?? 1, p.hour ?? 0, p.minute ?? 0) - at;
+  };
+  // The offset at the first guess can be an hour out next to a clock change, so check it at the second.
+  const guess = wall - offset(wall);
+  return wall - offset(guess);
+}
+
 export function formatMoney(cents: number, locale: string = CONFIG.locale, currency: string = CONFIG.currency): string {
   return new Intl.NumberFormat(locale, { style: 'currency', currency }).format(cents / 100);
 }

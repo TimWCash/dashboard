@@ -22,6 +22,7 @@
   --input: #e3e0d7;
   --ring: #16181d;
   --grid: #e9e7df;
+  color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -40,6 +41,7 @@
     --input: #2c2f36;
     --ring: #ffc629;
     --grid: #1f2125;
+    color-scheme: dark;
   }
 }
 
