@@ -11,7 +11,7 @@ SplitCab ([Company legal name]) is the **controller** for everything below. The 
 | Data minimisation (Art. 5(1)(c)) | Only a first name and rating are shown to a travel partner, and the phone number never is. Location is read only when someone taps "Use where I am now". There's no analytics, advertising or tracking SDK. Stripe holds card details; SplitCab keeps only brand and last four digits. | `rides/views.ts`, `store/privacy-answers.md` |
 | Privacy by default (Art. 25) | Before both people accept, each sees only the rough area of the other's stops ("Trinity College area"), rounded times and no coordinates. A Revtag is shown only to a partner who owes that person money, after the ride. | `rides/views.ts` |
 | Storage limitation (Art. 5(1)(e)) | Retention runs automatically every 6 hours (see the schedule below). | `rides/retention.ts`, `RideService.purgeOldData`, `packages/core/src/retention.ts` |
-| Transparency (Art. 12–14) | Privacy policy, plus **Account → Privacy & your data** in the app, which lists what's kept and for how long. The version of the Terms and Privacy Policy each person agreed to is recorded, and a new version is put to them before their next trip. | `apps/site/privacy.html`, `app/(app)/privacy.tsx`, `TERMS_VERSION` |
+| Transparency (Art. 12–14) | Privacy policy, plus **Account → Privacy & your data** in the app, which lists what's kept and for how long. The version of the Terms and Privacy Policy each person agreed to is recorded, and a new version is put to them before their next trip. | `apps/site/public/privacy.html`, `app/(app)/privacy.tsx`, `TERMS_VERSION` |
 | Access and portability (Art. 15, 20) | **Download my data** gives a JSON file of everything held about the person, including how long each part is kept. Reports other people made about them are withheld to protect the reporters (Art. 15(4)). | `GET /v1/me/export`, `ops-cli export` |
 | Rectification (Art. 16) | People edit their first name and Revtag in the app. A phone number change is handled by support (delete and sign up again, or an update in the database). | `app/(app)/name.tsx`, `app/(app)/revtag.tsx` |
 | Erasure (Art. 17) | **Delete my account** in the app, or by email using `ops-cli delete`. Name, number, Revtag, card reference, push token and sessions are erased at once. Trip and payment records are kept for tax law (Art. 17(3)(b)) with place names removed and locations blurred. | `RideService.deleteAccount` |
@@ -107,7 +107,7 @@ Sign-off: [name, role, date]. Whether a Data Protection Officer is required (Art
 
 ## Changing the Terms or Privacy Policy
 
-1. Update `apps/site/terms.html` or `privacy.html` and their "Last updated" dates.
+1. Update `apps/site/public/terms.html` or `privacy.html` and their "Last updated" dates.
 2. Set `TERMS_VERSION` on the API to the new date and deploy.
 3. Everyone is shown "We've updated our Terms and Privacy Policy" before their next trip. Their agreement is stored with the version (`users.terms_version`, `users.terms_accepted_at`) and included in their data export.
 

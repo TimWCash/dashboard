@@ -7,7 +7,8 @@ COPY apps/api/package.json apps/api/
 # Listed so the lockfile matches the workspaces; their dependencies aren't installed.
 COPY apps/mobile/package.json apps/mobile/
 COPY apps/demo/package.json apps/demo/
-# Only the API's dependencies; the mobile app and demo aren't needed here.
+COPY apps/site/package.json apps/site/
+# Only the API's dependencies; the mobile app, demo and website aren't needed here.
 RUN npm ci --workspace @splitcab/api --include-workspace-root --ignore-scripts
 COPY packages/core packages/core
 COPY apps/api apps/api

@@ -6,7 +6,7 @@ Everything the code can't do for you, in roughly the order to do it. Items marke
 
 - [ ] Register the company (CRO) and open a business bank account. App Store and Play organisation accounts need a legal entity and a D-U-N-S number (free, takes up to two weeks).
 - [ ] **Decision:** final product name. Search the EUIPO and Irish trademark registers and both app stores for "SplitCab" before spending on branding.
-- [ ] Solicitor review of `apps/site/privacy.html` and `apps/site/terms.html`; fill in every highlighted placeholder.
+- [ ] Solicitor review of `apps/site/public/privacy.html` and `apps/site/public/terms.html`; fill in every highlighted placeholder.
 - [ ] Ask the NTA (or a solicitor) to confirm the model: one hirer, one meter, passengers sharing with the hirer's consent and settling between themselves. Avoid anything resembling separate fares per passenger, which is a regulated "shared hire".
 - [ ] **Decision:** VAT. The €1.99 match fee is a service sold in Ireland; ask your accountant whether it includes VAT and register when required. Put the company's legal name, address and VAT number in `RECEIPT_COMPANY_DETAILS` so they're printed on riders' receipts.
 - [ ] Public liability insurance for a platform introducing strangers.
@@ -15,7 +15,7 @@ Everything the code can't do for you, in roughly the order to do it. Items marke
 ## 2. Website and email
 
 - [ ] Register the domain and set up the support mailbox.
-- [ ] Deploy `apps/site` (any static host). Check `/privacy`, `/terms`, `/support` and `/delete-account` load: both stores link to them.
+- [ ] Deploy `apps/site` (`npm run build -w @splitcab/site`, then any static host serving `apps/site/dist` with clean URLs; `apps/site/vercel.json` does this on Vercel). Check `/`, `/privacy`, `/terms`, `/support` and `/delete-account` load: both stores link to them. Replace "Coming to the App Store and Google Play" on the landing page with the store badges once the apps are live.
 - [ ] Set `TERMS_URL`, `PRIVACY_URL`, `SUPPORT_EMAIL` on the API and `SITE_URL` for `store.config.js`.
 
 ## 3. Backend

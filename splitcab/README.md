@@ -5,7 +5,7 @@ Two people heading the same way at roughly the same time get matched, take one t
 ```
 apps/mobile     Expo (React Native) app for iOS and Android
 apps/api        Fastify + Postgres API: sign-in, matching, payments, chat, safety
-apps/site       Static support site: privacy policy, terms, support, account deletion
+apps/site       splitcab.ie: landing page (React, Tailwind, shadcn/ui) plus the privacy, terms, support and account deletion pages
 apps/demo       Browser-only demo: the app's web build with the real API running in the page
 packages/core   Shared TypeScript: fare model, matching engine, places, API types
 prototype       The original single-page web demo (not maintained)
