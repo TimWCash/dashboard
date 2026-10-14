@@ -1,0 +1,15 @@
+{
+  "name": "splitcab",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Match travellers heading the same way so they can share one taxi and split the fare. Only charged when matched.",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "demo": "node server.js --demo",
+    "test": "node --test test/*.test.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

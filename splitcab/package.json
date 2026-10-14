@@ -1,0 +1,25 @@
+{
+  "name": "splitcab",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "api:dev": "npm run dev -w @splitcab/api",
+    "api:migrate": "npm run migrate -w @splitcab/api",
+    "mobile": "npm run start -w @splitcab/mobile",
+    "demo:build": "npm run build -w @splitcab/demo",
+    "demo:build:server": "npm run build:server -w @splitcab/demo",
+    "demo:build:vercel": "npm run build:vercel -w @splitcab/demo"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.3"
+  }
+}
