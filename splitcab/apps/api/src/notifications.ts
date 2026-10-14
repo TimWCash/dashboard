@@ -4,6 +4,8 @@ import { enqueue } from './jobs/queue';
 
 const timeFmt = new Intl.DateTimeFormat(CONFIG.locale, { timeZone: CONFIG.timeZone, hour: 'numeric', minute: '2-digit' });
 const at = (ms: number) => timeFmt.format(new Date(ms));
+const dayFmt = new Intl.DateTimeFormat(CONFIG.locale, { timeZone: CONFIG.timeZone, weekday: 'short', day: 'numeric', month: 'short' });
+const day = (ms: number) => dayFmt.format(new Date(ms));
 
 type Notice =
   | { kind: 'match_found'; partner: string; acceptBy: number; now: number }
@@ -17,7 +19,12 @@ type Notice =
   | { kind: 'new_message'; partner: string; text: string }
   | { kind: 'settled'; partner: string; youOwe: number }
   | { kind: 'paid'; partner: string; amount: number }
-  | { kind: 'receipt'; partner: string; owedToYou: number };
+  | { kind: 'receipt'; partner: string; owedToYou: number }
+  | { kind: 'search_started'; to: string; tripAt: number }
+  | { kind: 'answer_reminder'; partner: string; partnerAccepted: boolean; acceptBy: number }
+  | { kind: 'fare_reminder'; partner: string }
+  | { kind: 'settled_at_estimate'; partner: string; youOwe: number }
+  | { kind: 'estimate_used'; partner: string; owedToYou: number };
 
 function render(n: Notice): { title: string; body: string } {
   const fee = formatMoney(CONFIG.matchFee);
@@ -61,6 +68,28 @@ function render(n: Notice): { title: string; body: string } {
       };
     case 'paid':
       return { title: 'Paid', body: `${n.partner} says they've paid you ${formatMoney(n.amount)}.` };
+    case 'search_started':
+      return {
+        title: 'Looking for someone to share with',
+        body: `We've started looking for someone heading to ${n.to} on ${day(n.tripAt)}. The ${fee} hold is going on your card now.`,
+      };
+    case 'answer_reminder':
+      return {
+        title: n.partnerAccepted ? `${n.partner} said yes` : 'Still want to share?',
+        body: `Answer by ${at(n.acceptBy)}, or the match with ${n.partner} lapses.`,
+      };
+    case 'fare_reminder':
+      return { title: 'How much was the taxi?', body: `Enter the meter total so ${n.partner} can pay you their share.` };
+    case 'settled_at_estimate':
+      return {
+        title: 'Your share of the taxi',
+        body: `${n.partner} didn't enter the meter total, so we've used the estimate: you owe ${n.partner} ${formatMoney(n.youOwe)}.`,
+      };
+    case 'estimate_used':
+      return {
+        title: 'We split the fare for you',
+        body: `We used the estimate: ${n.partner} owes you ${formatMoney(n.owedToYou)}. If the meter said something different, you can still change it.`,
+      };
   }
 }
 

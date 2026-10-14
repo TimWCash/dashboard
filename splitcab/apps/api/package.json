@@ -10,7 +10,8 @@
     "migrate": "tsx --env-file-if-exists=.env src/migrate-cli.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "ops": "tsx --env-file-if-exists=.env src/ops-cli.ts"
+    "ops": "tsx --env-file-if-exists=.env src/ops-cli.ts",
+    "simulate": "tsx sim/simulate.ts"
   },
   "dependencies": {
     "@fastify/cors": "^11.3.1",

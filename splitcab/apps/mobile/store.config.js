@@ -9,7 +9,7 @@ const description = `SplitCab matches you with someone heading the same way at r
 Off to the airport at 5am? Heading home after a gig? Post your trip and we'll look for a travel partner nearby.
 
 HOW IT WORKS
-• Tell us where you're going and roughly when you want to leave or arrive.
+• Tell us where you're going and roughly when you want to leave or arrive, up to 60 days ahead.
 • We find someone nearby going your way and show exactly what you'll each pay before you agree.
 • You both accept, agree where to meet in the chat, and one of you books the taxi in your usual taxi app or takes one from a rank.
 • After the ride, the person who booked enters the fare and SplitCab shows who owes what. Pay them back on their Revolut page (a card works too), by scanning their QR code, or in cash. You both get a receipt.

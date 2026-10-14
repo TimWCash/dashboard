@@ -77,6 +77,8 @@ Everything the code can't do for you, in roughly the order to do it. Items marke
 
 ## Known gaps worth planning
 
+Before changing matching, payments or settling, run `npm run simulate -w @splitcab/api -- --worlds 100` (see the README).
+
 From the product review (October 2026), still open and needing your decisions:
 
 - **Who pays the driver.** The booker fronts the fare, enters the meter total alone, and has no protection if the partner doesn't pay or doesn't show. When the booker is dropped first, the partner may end up paying the driver while the app says the partner owes the booker. Options: whoever gets out last pays, settle in the cab before the first drop-off, the partner confirms the fare, a no-show flow with both checking in at the pickup, and asking for the Revtag before Accept.

@@ -48,7 +48,7 @@ describe('posting a trip', () => {
       [trip('stephens-green', 'trinity'), 400, 'trip_too_short'],
       // A midday hop across Dublin can't save either rider €4, whoever they share with.
       [trip('temple-bar', 'rathmines'), 400, 'not_worth_sharing'],
-      [trip('stephens-green', 'dub', { inMin: 8 * 24 * 60 }), 400, 'too_far_ahead'],
+      [trip('stephens-green', 'dub', { inMin: 61 * 24 * 60 }), 400, 'too_far_ahead'],
       [trip('stephens-green', 'dub', { inMin: 0, flexMin: 5 }), 400, 'too_soon'],
       [{ ...trip('stephens-green', 'dub'), seats: 4 }, 400, 'invalid_request'],
       [{ ...trip('stephens-green', 'dub'), time: 'tomorrow' }, 400, 'invalid_request'],

@@ -1,4 +1,4 @@
-import { CONFIG, haversineKm, rideSavings, soloFareFor, type LatLng, type MatchView, type MeView, type PaymentView, type ReceiptView, type RouteStop, type TripView } from '@splitcab/core';
+import { ACTIVE_TRIP_STATUSES, CONFIG, haversineKm, rideSavings, soloFareFor, type LatLng, type MatchView, type MeView, type PaymentView, type ReceiptView, type RouteStop, type TripView } from '@splitcab/core';
 import type { Queryable } from '../db';
 import { conflict, notFound } from '../errors';
 import { nearestArea } from './retention';
@@ -149,6 +149,7 @@ async function matchView(q: Queryable, trip: TripRow, m: MatchRow): Promise<Matc
           at: iso(s.at),
           paidAt: s.paidAt ? iso(s.paidAt) : null,
           bookerRevtag: !youBook && s.partnerOwes > 0 ? other.u_revtag : null,
+          estimated: Boolean(s.estimated),
         }
       : null,
   };
@@ -167,6 +168,7 @@ export async function tripView(q: Queryable, trip: TripRow): Promise<TripView> {
     flexMin: trip.flex_min,
     seats: trip.seats,
     searchUntil: iso(trip.search_until),
+    searchFrom: isoOrNull(trip.search_from),
     soloFare: trip.solo_fare,
     createdAt: iso(trip.created_at),
     payment: payment ? { id: payment.id, status: payment.status, amount: payment.amount, currency: payment.currency } : null,
@@ -185,7 +187,7 @@ export async function tripViewById(q: Queryable, userId: string, tripId: string)
 }
 
 export async function listTripViews(q: Queryable, userId: string, scope: 'active' | 'past'): Promise<TripView[]> {
-  const active = ['pending_payment', 'searching', 'proposed', 'confirmed'];
+  const active = [...ACTIVE_TRIP_STATUSES];
   const { rows } = await q.query<TripRow>(
     `SELECT * FROM trips WHERE user_id = $1 AND (status = ANY($2::text[])) = $3 ORDER BY target_time ${scope === 'active' ? 'ASC' : 'DESC'} LIMIT 50`,
     [userId, active, scope === 'active'],
@@ -252,7 +254,7 @@ export async function receiptView(q: Queryable, merchant: ReceiptView['merchant'
     merchant,
     ride: { from: trip.origin_label, to: trip.dest_label, pickupAt: iso(me.pickupAt), dropoffAt: iso(me.dropoffAt), partner, youBooked },
     fare: {
-      meterTotal: s?.actualFare ?? null,
+      meterTotal: s && !s.estimated ? s.actualFare : null,
       yourShare,
       partnerShare,
       soloEstimate: soloFareFor(me, yourShare),

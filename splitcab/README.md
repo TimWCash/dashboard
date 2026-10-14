@@ -43,9 +43,20 @@ npx expo start --web  # quick UI checks in a browser against the test payment mo
 npm run typecheck
 npm test -w @splitcab/core
 TEST_DATABASE_URL=postgres://postgres@127.0.0.1:5432/splitcab_test npm test -w @splitcab/api   # wipes that database
+TEST_DATABASE_URL=postgres://postgres@127.0.0.1:5432/splitcab_test npm run simulate -w @splitcab/api -- --worlds 100
 ```
 
-The API tests run against a real Postgres database. They cover sign-in, wrong-code lockouts and token rotation, the full ride lifecycle, holds, captures, releases and refunds (including captures that race a release), 3-D Secure, cancellations before and after pickup, blocking and reporting, chat and name filtering, privacy of the other rider's stops before both accept, posting limits and pair cooldowns, concurrent matching, account deletion and export, the store review account, production config guards, and signed Stripe webhooks. CI (`.github/workflows/splitcab.yml`) runs these plus the mobile typecheck, iOS/Android bundles and the API Docker build.
+The API tests run against a real Postgres database. They cover sign-in, wrong-code lockouts and token rotation, the full ride lifecycle, holds, captures, releases and refunds (including captures that race a release), 3-D Secure, cancellations before and after pickup, blocking and reporting, chat and name filtering, privacy of the other rider's stops before both accept, posting limits and pair cooldowns, concurrent matching, account deletion and export, the store review account, production config guards, and signed Stripe webhooks. `simulate` runs randomised worlds against the real API. Travellers with different habits post trips minutes to weeks ahead; answer, ignore or decline matches; cancel, block and report; settle or don't; and delete their accounts. Cards are declined and the payment provider fails now and then. After each step it checks that:
+- nobody is charged without a match both accepted;
+- no card hold is left open;
+- our records agree with the payment provider;
+- nothing gets stuck;
+- nobody sees another person's number or exact stop too early;
+- receipts add up.
+
+Each finding names the world's seed, so it can be replayed with `--seed <n> --worlds 1`. Run it after changing matching, payments or settling.
+
+CI (`.github/workflows/splitcab.yml`) runs these, a few simulated worlds, and the mobile typecheck, iOS/Android bundles and the API Docker build.
 
 ## Privacy and GDPR
 

@@ -83,7 +83,7 @@ const schema = z.object({
   TERMS_URL: z.string().url().default('https://splitcab.ie/terms'),
   // Version of the Terms of Service and Privacy Policy. Change it when either changes, and everyone is asked to
   // agree to the new version before their next trip. Their agreement is recorded with the version.
-  TERMS_VERSION: z.string().min(1).max(40).default('2026-10-12'),
+  TERMS_VERSION: z.string().min(1).max(40).default('2026-10-14'),
   PRIVACY_URL: z.string().url().default('https://splitcab.ie/privacy'),
   SUPPORT_EMAIL: z.string().email().default('support@splitcab.ie'),
 });

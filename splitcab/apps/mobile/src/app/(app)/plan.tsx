@@ -49,6 +49,8 @@ export default function Plan() {
   const fee = formatMoney(config.data?.matchFee ?? CONFIG.matchFee);
   const card = me?.paymentMethod;
   const arrive = draft.timeMode === 'arrive';
+  // Further ahead than a card hold lasts: the trip is saved and the search (and hold) starts later.
+  const planned = draft.time.getTime() - CONFIG.trips.maxDaysAhead * 86_400_000 > now;
 
   async function addCard() {
     if (!config.data) return false;
@@ -122,14 +124,16 @@ export default function Plan() {
         <>
           {error ? <Note tone="bad">{error}</Note> : null}
           <Button
-            title={card ? 'Find someone to share with' : 'Add card and find a match'}
+            title={planned ? (card ? 'Plan this trip' : 'Add card and plan this trip') : card ? 'Find someone to share with' : 'Add card and find a match'}
             onPress={submit}
             loading={busy}
             disabled={!ready || !config.data || !worthSharing}
             accessibilityHint={`Places a ${fee} hold on your card, only charged if you're matched`}
           />
           <AppText variant="small" muted style={{ textAlign: 'center' }}>
-            {`This asks us to start looking straight away. Once you're matched and you both accept, the ${fee} is charged and, as the service is then complete, you can't cancel it for a refund.`}
+            {planned
+              ? `We'll start looking ${CONFIG.trips.maxDaysAhead} days before your trip and place the ${fee} hold then. Once you're matched and you both accept, the ${fee} is charged and, as the service is then complete, you can't cancel it for a refund.`
+              : `This asks us to start looking straight away. Once you're matched and you both accept, the ${fee} is charged and, as the service is then complete, you can't cancel it for a refund.`}
           </AppText>
         </>
       }
@@ -154,7 +158,7 @@ export default function Plan() {
         value={draft.time}
         onChange={(time) => updateDraft({ time })}
         minimumDate={new Date(now)}
-        maximumDate={new Date(now + CONFIG.trips.maxDaysAhead * 86_400_000)}
+        maximumDate={new Date(now + CONFIG.trips.maxPlanDaysAhead * 86_400_000)}
       />
 
       {showOptions ? (

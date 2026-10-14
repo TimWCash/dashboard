@@ -78,8 +78,10 @@ export const CONFIG = {
   },
 
   trips: {
-    // Card authorisations last about 7 days, so trips can't be posted further ahead than this.
+    // Card authorisations last about 7 days, so the hold is placed and the search starts at most this many days
+    // before a trip. Trips planned further ahead are saved and start then.
     maxDaysAhead: 6,
+    maxPlanDaysAhead: 60,
     minFlexMinutes: 5,
     maxFlexMinutes: 120,
     minTripKm: 1,
@@ -91,7 +93,14 @@ export const CONFIG = {
   // How long the pair has to answer a proposed match. Trips leaving soon get 10 minutes. Trips planned ahead get
   // until 45 minutes before pickup, for at most 12 hours, so a match found overnight for an early flight is still
   // there when people wake up.
-  accept: { minMinutes: 10, beforePickupMinutes: 45, maxHours: 12 },
+  // A match isn't offered with less than minAnswerMinutes left to answer. When there's over an hour to answer,
+  // whoever hasn't yet is reminded reminderMinutesBefore the deadline.
+  accept: { minMinutes: 10, beforePickupMinutes: 45, maxHours: 12, minAnswerMinutes: 5, reminderMinutesBefore: 30, remindIfOverMinutes: 60 },
+
+  // After the last drop-off, the booker is reminded to enter the meter total at these times (minutes). If they still
+  // haven't after closeAfterHours, the ride is closed and split at the estimate both people accepted; the booker can
+  // correct it until the other person has paid.
+  settle: { reminderMinutes: [30, 180], closeAfterHours: 6 },
   // An account is paused automatically, while the reports are looked into, once this many different people it was
   // matched with (both having accepted) report it within a year: fewer for feeling unsafe or harassment.
   safety: { pauseAfterSeriousReports: 2, pauseAfterReports: 3, reportWindowDays: 365 },

@@ -2,11 +2,12 @@ import { rideSavings, type MatchView, type TripView } from '@splitcab/core';
 import { Link, router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Pressable, StyleSheet, View } from 'react-native';
-import { clock, countdown, money, pct, tripTimeLine } from '../lib/format';
+import { clock, countdown, dateOnly, money, pct, tripTimeLine } from '../lib/format';
 import { radius, space, useTheme } from '../lib/theme';
 import { AppText, Avatar, Card, Icon, Note, Pill, Row, type Tone } from './ui';
 
 export const STATUS: Record<TripView['status'], { label: string; tone: Tone }> = {
+  scheduled: { label: 'Planned', tone: 'neutral' },
   pending_payment: { label: 'Confirm card', tone: 'warn' },
   searching: { label: 'Searching', tone: 'neutral' },
   proposed: { label: 'Match found', tone: 'accent' },
@@ -37,6 +38,8 @@ export function TripHeader({ trip, showStatus = true }: { trip: TripView; showSt
 function summary(trip: TripView): string | null {
   const m = trip.match;
   switch (trip.status) {
+    case 'scheduled':
+      return trip.searchFrom ? `We'll start looking on ${dateOnly(trip.searchFrom)}` : null;
     case 'pending_payment':
       return 'Confirm the hold with your bank to start searching';
     case 'searching':

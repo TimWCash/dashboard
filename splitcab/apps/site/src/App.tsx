@@ -75,6 +75,10 @@ const faqs = [
     a: "Everyone signs in with a mobile number, but you only ever see a first name and rating. The exact pickup point and chat open only once you've both said yes. Tap Safety on any trip to report or block someone. Reports reach us straight away, and if more than one person reports someone, their account is paused while we look into it. In an emergency, call 112.",
   },
   {
+    q: "How far ahead can I plan?",
+    a: "Up to 60 days. For a trip more than 6 days away, we save it and start looking 6 days before, which is when the €1.99 hold goes on your card.",
+  },
+  {
     q: "Where does it work?",
     a: "In the Republic of Ireland. Each share is worked out from the National Transport Authority's taxi fares, which don't apply in Northern Ireland.",
   },

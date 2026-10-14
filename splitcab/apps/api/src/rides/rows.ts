@@ -41,6 +41,7 @@ export interface TripRow {
   seats: number;
   status: TripStatus;
   search_until: Date;
+  search_from: Date | null;
   solo_fare: number;
   match_id: string | null;
   payment_id: string | null;
@@ -54,6 +55,8 @@ export interface Settlement {
   bookerShare: number;
   at: number;
   paidAt?: number;
+  // Nobody entered the meter total; the shares are the accepted estimates.
+  estimated?: boolean;
 }
 
 export interface MatchRow {
@@ -71,6 +74,8 @@ export interface MatchRow {
   ended_at: Date | null;
   cancelled_by_trip_id: string | null;
   settlement: Settlement | null;
+  answer_reminded_at: Date | null;
+  fare_reminders: number;
 }
 
 export interface PaymentRow {

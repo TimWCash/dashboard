@@ -12,7 +12,7 @@ import { useAuth } from '../../../lib/auth';
 import { DEMO } from '../../../lib/demo';
 import { bookingOptions } from '../../../lib/booking';
 import { confirmDestructive } from '../../../lib/confirm';
-import { clock, money, parseEuro } from '../../../lib/format';
+import { clock, dateOnly, money, parseEuro } from '../../../lib/format';
 import { mapPoints } from '../../../lib/mapPoints';
 import { useCardPayments } from '../../../lib/payments';
 import { updateDraft } from '../../../lib/planDraft';
@@ -49,6 +49,7 @@ function TripBody({ trip }: { trip: TripView }) {
     <>
       <TripHeader trip={trip} showStatus={false} />
       {error ? <Note tone="bad">{error}</Note> : null}
+      {trip.status === 'scheduled' ? <Scheduled trip={trip} onError={onError} /> : null}
       {trip.status === 'pending_payment' ? <PendingPayment trip={trip} onError={onError} /> : null}
       {trip.status === 'searching' ? <Searching trip={trip} onError={onError} /> : null}
       {trip.status === 'proposed' && trip.match ? <Proposed trip={trip} match={trip.match} onError={onError} /> : null}
@@ -105,6 +106,27 @@ function CancelButton({ trip, onError, warning }: Section & { warning: string })
       loading={cancel.isPending}
       onPress={() => confirmDestructive({ title: 'Cancel this trip?', message: warning, confirm: 'Cancel trip', onConfirm: () => cancel.mutate(trip.id, { onError }) })}
     />
+  );
+}
+
+// Planned further ahead than a card hold lasts: saved until the search opens.
+function Scheduled({ trip, onError }: Section) {
+  return (
+    <>
+      <Card>
+        <Row>
+          <Icon name="calendar-outline" />
+          <View style={{ flex: 1, gap: 2 }}>
+            <AppText variant="heading">{trip.searchFrom ? `We'll start looking on ${dateOnly(trip.searchFrom)}` : 'Planned'}</AppText>
+            <AppText variant="small" muted>
+              {`That's ${CONFIG.trips.maxDaysAhead} days before your trip, when we place the ${money(CONFIG.matchFee)} hold on your card. You're only charged if you're matched and you both say yes.`}
+            </AppText>
+          </View>
+        </Row>
+        <RouteMap points={mapPoints(trip)} height={150} />
+      </Card>
+      <CancelButton trip={trip} onError={onError} warning="Nothing has been held or charged." />
+    </>
   );
 }
 
@@ -380,7 +402,9 @@ function PayBack({ match, onError }: { match: MatchView; onError: (e: unknown) =
     <Card>
       <AppText variant="title">{s.paidAt ? `You paid ${name} ${amount}` : `You owe ${name} ${amount}`}</AppText>
       <AppText variant="small" muted>
-        {`That's your share of the ${money(s.actualFare)} fare.`}
+        {s.estimated
+          ? `${name} didn't enter the meter total, so this is your share of the ${money(s.actualFare)} estimate you both accepted.`
+          : `That's your share of the ${money(s.actualFare)} fare.`}
       </AppText>
       {s.paidAt ? (
         <Note tone="good">{`We've let ${name} know. Thanks!`}</Note>
@@ -407,8 +431,10 @@ function PayBack({ match, onError }: { match: MatchView; onError: (e: unknown) =
 }
 
 // The booker gets paid back: a QR code of their Revolut page to scan in person, or a reminder.
-function GetPaidBack({ trip, match }: { trip: TripView; match: MatchView }) {
+function GetPaidBack({ trip, match, onError }: { trip: TripView; match: MatchView; onError: (e: unknown) => void }) {
   const { me } = useAuth();
+  const complete = useComplete();
+  const [fare, setFare] = useState('');
   const [showQr, setShowQr] = useState(false);
   const s = match.settlement!;
   const name = match.partner.firstName;
@@ -418,8 +444,26 @@ function GetPaidBack({ trip, match }: { trip: TripView; match: MatchView }) {
     <Card>
       <AppText variant="title">{s.paidAt ? `${name} says they've paid you ${amount}` : `${name} owes you ${amount}`}</AppText>
       <AppText variant="small" muted>
-        {`That's their share of the ${money(s.actualFare)} fare.`}
+        {s.estimated
+          ? `That's their share of the ${money(s.actualFare)} estimate, since the meter total wasn't entered. If the meter said something different, enter it below.`
+          : `That's their share of the ${money(s.actualFare)} fare.`}
       </AppText>
+      {s.estimated && !s.paidAt ? (
+        <>
+          <Field label="Total on the meter (€)" value={fare} onChangeText={setFare} keyboardType="decimal-pad" placeholder={`e.g. ${(s.actualFare / 100).toFixed(2)}`} testID="fare-input" />
+          <Button
+            title="Update the fare"
+            variant="ghost"
+            disabled={!fare}
+            loading={complete.isPending}
+            onPress={() => {
+              const cents = parseEuro(fare);
+              if (cents === null) return onError(new ApiError(400, 'invalid_fare', 'Enter the total on the meter, for example 36.91.'));
+              complete.mutate({ matchId: match.id, actualFare: cents }, { onError });
+            }}
+          />
+        </>
+      ) : null}
       {s.paidAt ? (
         <Note tone="good">Check your Revolut or bank app to make sure it arrived.</Note>
       ) : (
@@ -466,7 +510,7 @@ function Completed({ trip, match, onError }: Section & { match: MatchView }) {
 
   return (
     <>
-      {s && (s.youOwe > 0 || s.owedToYou > 0) ? (match.youBook ? <GetPaidBack trip={trip} match={match} /> : <PayBack match={match} onError={onError} />) : null}
+      {s && (s.youOwe > 0 || s.owedToYou > 0) ? (match.youBook ? <GetPaidBack trip={trip} match={match} onError={onError} /> : <PayBack match={match} onError={onError} />) : null}
       {saved > 0 ? <Note tone="good">{`You saved about ${money(saved)} compared with taking a taxi alone.`}</Note> : null}
       <Card>
         <AppText variant="heading">{match.youRated || (stars && rate.isSuccess) ? 'Thanks for rating' : `How was sharing with ${name}?`}</AppText>

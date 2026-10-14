@@ -109,10 +109,11 @@ export interface PaymentView extends PaymentSummary {
 
 // ---- trips & matches ---------------------------------------------------------------
 
-export type TripStatus = 'pending_payment' | 'searching' | 'proposed' | 'confirmed' | 'completed' | 'expired' | 'cancelled';
+// 'scheduled': planned more than CONFIG.trips.maxDaysAhead days ahead; saved, with no hold yet, until searchFrom.
+export type TripStatus = 'scheduled' | 'pending_payment' | 'searching' | 'proposed' | 'confirmed' | 'completed' | 'expired' | 'cancelled';
 export type MatchStatus = 'proposed' | 'confirmed' | 'completed' | 'declined' | 'expired' | 'cancelled';
 
-export const ACTIVE_TRIP_STATUSES: readonly TripStatus[] = ['pending_payment', 'searching', 'proposed', 'confirmed'];
+export const ACTIVE_TRIP_STATUSES: readonly TripStatus[] = ['scheduled', 'pending_payment', 'searching', 'proposed', 'confirmed'];
 
 export interface TripInput {
   origin: Place;
@@ -159,6 +160,9 @@ export interface SettlementView {
   paidAt: ISODate | null;
   // The booker's Revtag, shown only to the person who owes them.
   bookerRevtag: string | null;
+  // Nobody entered the meter total, so the shares are the estimates both people accepted. The booker can still
+  // enter the real total until the other person has paid.
+  estimated: boolean;
 }
 
 // A rider's receipt for a shared ride. Each rider gets their own, showing their side of the split.
@@ -213,6 +217,8 @@ export interface TripView {
   flexMin: number;
   seats: number;
   searchUntil: ISODate;
+  // For a trip planned well ahead: when the hold is placed and the search starts.
+  searchFrom: ISODate | null;
   soloFare: number;
   createdAt: ISODate;
   payment: PaymentSummary | null;

@@ -22,6 +22,9 @@ function dayWord(d: Date) {
 
 const capital = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
+// "Sat 18 Oct"
+export const dateOnly = (iso: string | number | Date) => dayFmt.format(new Date(iso));
+
 // "Today 01:58", "Tomorrow 07:15", "Sat 11 Oct, 09:00"
 export function when(iso: string | number | Date) {
   const d = new Date(iso);

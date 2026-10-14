@@ -43,6 +43,9 @@ describe('the public demo', () => {
     h.advance(MIN);
     await h.rides.sweep();
     expect((await get(h, ana, a.id)).status).toBe('searching');
+    // The pretend traveller's pretend payment doesn't stay looking like a hold.
+    const { rows } = await db.query("SELECT p.status FROM payments p JOIN users u ON u.id = p.user_id WHERE u.is_demo");
+    expect(rows.map((r) => r.status)).toEqual(['released']);
   });
 
   test('every trip that can be posted gets the pretend partner, short or long', async () => {

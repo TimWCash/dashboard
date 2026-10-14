@@ -26,6 +26,7 @@ import { notify } from '../notifications';
 import { areaName, blurTrips, daysAgo, deleteOldRecords, RETENTION } from './retention';
 import type { AuthorizeResult } from '../providers/payments';
 import {
+  acceptedAt,
   getMatch,
   getOwnTrip,
   getPayment,
@@ -40,14 +41,17 @@ import {
 } from './rows';
 
 const MINUTE = 60_000;
-const ACTIVE = ['pending_payment', 'searching', 'proposed', 'confirmed'];
+const ACTIVE = ['scheduled', 'pending_payment', 'searching', 'proposed', 'confirmed'];
+const DAY = 24 * 60 * 60_000;
 // A hold the rider never authenticated is abandoned after this long.
 const PENDING_PAYMENT_TIMEOUT_MS = 30 * MINUTE;
 const MAX_TRIPS_PER_DAY = 20;
 // After a match falls through, the same two people aren't proposed to each other again for this long.
 const PAIR_COOLDOWN_MS = 24 * 60 * MINUTE;
-// A confirmed ride nobody settled is closed this long after its last drop-off.
-const AUTO_COMPLETE_AFTER_MS = 6 * 60 * MINUTE;
+// A confirmed ride nobody settled is closed this long after its last drop-off, split at the estimate.
+const AUTO_COMPLETE_AFTER_MS = CONFIG.settle.closeAfterHours * 60 * MINUTE;
+// A planned trip whose hold needs the rider's bank to approve it gets this long, since they weren't in the app.
+const SCHEDULED_HOLD_TIMEOUT_MS = 24 * 60 * MINUTE;
 // How long people have to accept a proposal in the public demo.
 const DEMO_ACCEPT_WINDOW_MIN = 3;
 
@@ -107,9 +111,13 @@ export class RideService {
     }
     const time = Date.parse(input.time);
     if (!Number.isFinite(time)) throw badRequest('invalid_time', 'Choose a time.');
-    if (time > now + CONFIG.trips.maxDaysAhead * 24 * 60 * MINUTE) {
-      throw badRequest('too_far_ahead', `You can post trips up to ${CONFIG.trips.maxDaysAhead} days ahead.`);
+    if (time > now + CONFIG.trips.maxPlanDaysAhead * DAY) {
+      throw badRequest('too_far_ahead', `You can plan trips up to ${CONFIG.trips.maxPlanDaysAhead} days ahead.`);
     }
+    // A card hold only lasts about a week, so a trip further ahead is saved and starts searching (placing the hold)
+    // maxDaysAhead days before.
+    const searchFrom = time - CONFIG.trips.maxDaysAhead * DAY;
+    const scheduled = searchFrom > now;
     const like = { origin, destination, timeMode: input.timeMode, time, flexMin: input.flexMin, seats: input.seats };
     const searchUntil = searchDeadline(like);
     if (searchUntil <= now + MINUTE) {
@@ -139,8 +147,8 @@ export class RideService {
       if ((today[0]?.n ?? 0) >= MAX_TRIPS_PER_DAY) throw new AppError(429, 'rate_limited', "You've posted a lot of trips today. Try again tomorrow.");
       const { rows } = await tx.query<{ id: string }>(
         `INSERT INTO trips (user_id, origin_label, origin_lat, origin_lng, dest_label, dest_lat, dest_lng, time_mode, target_time,
-                            flex_min, seats, status, search_until, solo_fare, created_at, updated_at, start_now_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'pending_payment', $12, $13, $14, $14, $14) RETURNING id`,
+                            flex_min, seats, status, search_until, solo_fare, created_at, updated_at, start_now_at, search_from)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $15, $12, $13, $14, $14, $14, $16) RETURNING id`,
         [
           userId,
           origin.label,
@@ -156,12 +164,16 @@ export class RideService {
           new Date(searchUntil),
           soloFare,
           new Date(now),
+          scheduled ? 'scheduled' : 'pending_payment',
+          scheduled ? new Date(searchFrom) : null,
         ],
       );
       const tripId = rows[0]!.id;
+      if (scheduled) return { tripId, paymentId: null };
       const paymentId = await this.createPayment(tx, userId, tripId, now);
       return { tripId, paymentId };
     });
+    if (!paymentId) return tripId;
 
     // The card call happens outside any transaction. If we crash before recording the result, the
     // webhook (or the sweeper's timeout) reconciles it.
@@ -277,6 +289,9 @@ export class RideService {
     if (await this.isDemo(tx, trip.user_id)) return null;
     if (await this.isReviewer(tx, trip.user_id)) return null;
     if (await this.isPaused(tx, trip.user_id)) return null;
+    // Both trips must still be searching long enough for the pair to answer.
+    const answerBy = now + CONFIG.accept.minAnswerMinutes * MINUTE;
+    if (trip.search_until.getTime() < answerBy) return null;
     const box = boxAround({ lat: trip.origin_lat, lng: trip.origin_lng }, CONFIG.matching.maxPickupGapKm / CONFIG.geo.circuity);
     // Coarse prefilters only; the matching engine makes the real decision.
     const { rows: candidates } = await tx.query<TripRow>(
@@ -298,7 +313,7 @@ export class RideService {
       [
         trip.id,
         trip.user_id,
-        new Date(now),
+        new Date(answerBy),
         trip.seats,
         CONFIG.matching.taxiSeats,
         box.minLat,
@@ -443,6 +458,7 @@ export class RideService {
   private async reopen(tx: Tx, trip: TripRow, now: number, { newHold = false } = {}) {
     if (await this.isDemo(tx, trip.user_id)) {
       await this.setTrip(tx, trip.id, { status: 'cancelled', match_id: null }, now);
+      await this.releasePretendPayment(tx, trip.payment_id, now);
       return;
     }
     if (now >= trip.search_until.getTime()) {
@@ -473,6 +489,9 @@ export class RideService {
 
   private async cancelLocked(tx: Tx, trip: TripRow, now: number) {
     switch (trip.status) {
+      case 'scheduled':
+        await this.setTrip(tx, trip.id, { status: 'cancelled' }, now);
+        return;
       case 'pending_payment':
       case 'searching':
         await this.setTrip(tx, trip.id, { status: 'cancelled' }, now);
@@ -575,14 +594,22 @@ export class RideService {
     return this.tx(async (tx) => {
       const now = this.now();
       const { match, mine, partner } = await this.memberMatch(tx, userId, matchId);
-      if (match.status !== 'confirmed') throw conflict('match_not_confirmed', 'Only a confirmed ride can be settled.');
+      // A ride closed at the estimate can still be given its real meter total, until the other person has paid.
+      const correcting = match.status === 'completed' && Boolean(match.settlement?.estimated) && !match.settlement?.paidAt;
+      if (match.status !== 'confirmed' && !correcting) throw conflict('match_not_confirmed', 'Only a confirmed ride can be settled.');
       if (match.booker_trip_id !== mine.id) throw forbidden('The person who booked the taxi enters the final fare.');
       const partnerOwes = settleFare(actualFare, match.plan, partner.id);
       const settlement = { actualFare, partnerOwes, bookerShare: actualFare - partnerOwes, at: now };
-      await tx.query("UPDATE matches SET status = 'completed', ended_at = $2, settlement = $3 WHERE id = $1", [match.id, new Date(now), settlement]);
-      for (const t of [mine, partner]) {
-        await this.setTrip(tx, t.id, { status: 'completed' }, now);
-        await tx.query('UPDATE users SET rides_completed = rides_completed + 1 WHERE id = $1', [t.user_id]);
+      await tx.query("UPDATE matches SET status = 'completed', ended_at = COALESCE(ended_at, $2), settlement = $3 WHERE id = $1", [
+        match.id,
+        new Date(now),
+        settlement,
+      ]);
+      if (!correcting) {
+        for (const t of [mine, partner]) {
+          await this.setTrip(tx, t.id, { status: 'completed' }, now);
+          await tx.query('UPDATE users SET rides_completed = rides_completed + 1 WHERE id = $1', [t.user_id]);
+        }
       }
       // Both riders get their receipt.
       const names = await this.firstNames(tx, [mine.user_id, partner.user_id]);
@@ -723,7 +750,11 @@ export class RideService {
       const now = this.now();
       const user = await getUser(tx, userId);
       const { rows: active } = await tx.query<TripRow>('SELECT * FROM trips WHERE user_id = $1 AND status = ANY($2) FOR UPDATE', [userId, ACTIVE]);
-      for (const trip of active) await this.cancelLocked(tx, trip, now);
+      for (const trip of active) {
+        // A ride that has started stays, so the other person can still settle it. Everything else is cancelled.
+        if (trip.status === 'confirmed' && now >= (await getMatch(tx, trip.match_id!))!.plan.startAt) continue;
+        await this.cancelLocked(tx, trip, now);
+      }
       if (user.suspended_at && user.phone) {
         await tx.query(
           'INSERT INTO paused_numbers (phone_hash, paused_at, created_at) VALUES ($1, $2, $3) ON CONFLICT (phone_hash) DO UPDATE SET paused_at = EXCLUDED.paused_at, created_at = EXCLUDED.created_at',
@@ -799,7 +830,17 @@ export class RideService {
     await tx.query('UPDATE trips SET payment_id = $2 WHERE id = $1', [companion.id, pay[0]!.id]);
     const plan = findBestMatch(toTripLike(trip), [toTripLike({ ...companion, payment_id: pay[0]!.id })], now);
     if (plan) await this.propose(tx, trip, { ...companion, payment_id: pay[0]!.id }, plan.plan, now);
-    else await this.setTrip(tx, companion.id, { status: 'cancelled' }, now);
+    else {
+      await this.setTrip(tx, companion.id, { status: 'cancelled' }, now);
+      await this.releasePretendPayment(tx, pay[0]!.id, now);
+    }
+  }
+
+  // A demo traveller's payment was never a real hold; mark it released so nothing looks left on hold.
+  private async releasePretendPayment(tx: Tx, paymentId: string | null, now: number) {
+    if (!paymentId) return;
+    const payment = await getPayment(tx, paymentId, { lock: true });
+    if (payment?.status === 'authorized') await setPaymentStatus(tx, paymentId, 'released', now);
   }
 
   // The public demo's "Skip to after the ride": moves a confirmed ride into the past, for both riders, so the
@@ -850,24 +891,84 @@ export class RideService {
         await notify(tx, now, trip.user_id, { kind: 'trip_expired' }, { tripId: trip.id });
       }
 
+      // Planned trips whose search opens now: place the hold without the rider in the app, then look for a match.
+      const { rows: opening } = await tx.query<TripRow>("SELECT * FROM trips WHERE status = 'scheduled' AND search_from <= $1 FOR UPDATE", [at]);
+      for (const trip of opening) {
+        if (now >= trip.search_until.getTime()) {
+          await this.setTrip(tx, trip.id, { status: 'expired' }, now);
+          continue;
+        }
+        const paymentId = await this.createPayment(tx, trip.user_id, trip.id, now);
+        await this.setTrip(tx, trip.id, { status: 'pending_payment' }, now);
+        await enqueue(tx, now, 'payment.authorize', { paymentId });
+        await notify(tx, now, trip.user_id, { kind: 'search_started', to: trip.dest_label, tripAt: trip.target_time.getTime() }, { tripId: trip.id });
+      }
+
       const { rows: abandoned } = await tx.query<TripRow>(
-        "SELECT * FROM trips WHERE status = 'pending_payment' AND (search_until <= $1 OR updated_at <= $2) FOR UPDATE",
-        [at, new Date(now - PENDING_PAYMENT_TIMEOUT_MS)],
+        `SELECT * FROM trips WHERE status = 'pending_payment'
+           AND (search_until <= $1 OR (updated_at <= $2 AND search_from IS NULL) OR updated_at <= $3) FOR UPDATE`,
+        [at, new Date(now - PENDING_PAYMENT_TIMEOUT_MS), new Date(now - SCHEDULED_HOLD_TIMEOUT_MS)],
       );
       for (const trip of abandoned) {
         await this.setTrip(tx, trip.id, { status: 'cancelled' }, now);
         if (trip.payment_id) await enqueue(tx, now, 'payment.cancel', { paymentId: trip.payment_id });
       }
 
-      // Rides nobody settled: close them some hours after the last drop-off so they don't stay open forever.
+      // A proposal with a long time to answer: remind whoever hasn't answered, once, before it lapses.
+      const { reminderMinutesBefore, remindIfOverMinutes } = CONFIG.accept;
+      const { rows: unanswered } = await tx.query<MatchRow>(
+        `SELECT * FROM matches WHERE status = 'proposed' AND answer_reminded_at IS NULL AND expires_at > $1 AND expires_at <= $2
+           AND expires_at - proposed_at > make_interval(mins => $3) FOR UPDATE`,
+        [at, new Date(now + reminderMinutesBefore * MINUTE), remindIfOverMinutes],
+      );
+      for (const match of unanswered) {
+        await tx.query('UPDATE matches SET answer_reminded_at = $2 WHERE id = $1', [match.id, at]);
+        const trips = await Promise.all([getTrip(tx, match.trip_a), getTrip(tx, match.trip_b)]);
+        const names = await this.firstNames(tx, trips.map((t) => t!.user_id));
+        for (const t of trips) {
+          const other = trips.find((x) => x!.id !== t!.id)!;
+          if (acceptedAt(match, t!.id)) continue;
+          await notify(
+            tx,
+            now,
+            t!.user_id,
+            { kind: 'answer_reminder', partner: names.get(other.user_id)!, partnerAccepted: Boolean(acceptedAt(match, other.id)), acceptBy: match.expires_at.getTime() },
+            { tripId: t!.id },
+          );
+        }
+      }
+
+      // Rides nobody has settled: remind the booker to enter the meter total, then close them at the estimate both
+      // people accepted, so the other person still knows what they owe. The booker can correct it until they're paid.
       const { rows: unsettled } = await tx.query<MatchRow>("SELECT * FROM matches WHERE status = 'confirmed' FOR UPDATE");
       for (const match of unsettled) {
         const lastStop = match.plan.route[match.plan.route.length - 1];
-        if (!lastStop || now < lastStop.at + AUTO_COMPLETE_AFTER_MS) continue;
-        await tx.query("UPDATE matches SET status = 'completed', ended_at = $2 WHERE id = $1", [match.id, at]);
+        if (!lastStop || now < lastStop.at) continue;
+        const bookerId = match.booker_trip_id;
+        const partnerId = partnerTripId(match, bookerId);
+        const [booker, partner] = await Promise.all([getTrip(tx, bookerId), getTrip(tx, partnerId)]);
+        const names = await this.firstNames(tx, [booker!.user_id, partner!.user_id]);
+        const remindAt = CONFIG.settle.reminderMinutes[match.fare_reminders];
+        if (now < lastStop.at + AUTO_COMPLETE_AFTER_MS) {
+          if (remindAt !== undefined && now >= lastStop.at + remindAt * MINUTE) {
+            await tx.query('UPDATE matches SET fare_reminders = fare_reminders + 1 WHERE id = $1', [match.id]);
+            await notify(tx, now, booker!.user_id, { kind: 'fare_reminder', partner: names.get(partner!.user_id)! }, { tripId: bookerId, matchId: match.id });
+          }
+          continue;
+        }
+        // Nobody to pay back if the booker has deleted their account.
+        const { rows: bookerRows } = await tx.query<{ deleted_at: Date | null }>('SELECT deleted_at FROM users WHERE id = $1', [booker!.user_id]);
+        const bookerGone = Boolean(bookerRows[0]?.deleted_at);
+        const partnerOwes = match.plan.riders[partnerId]!.share;
+        const settlement = bookerGone ? null : { actualFare: match.plan.fare, partnerOwes, bookerShare: match.plan.fare - partnerOwes, at: now, estimated: true };
+        await tx.query("UPDATE matches SET status = 'completed', ended_at = $2, settlement = $3 WHERE id = $1", [match.id, at, settlement]);
         for (const id of [match.trip_a, match.trip_b]) {
           const { rows } = await tx.query<{ user_id: string }>("UPDATE trips SET status = 'completed', updated_at = $2 WHERE id = $1 RETURNING user_id", [id, at]);
           await tx.query('UPDATE users SET rides_completed = rides_completed + 1 WHERE id = $1', [rows[0]!.user_id]);
+        }
+        if (settlement && partnerOwes > 0) {
+          await notify(tx, now, partner!.user_id, { kind: 'settled_at_estimate', partner: names.get(booker!.user_id)!, youOwe: partnerOwes }, { tripId: partnerId });
+          await notify(tx, now, booker!.user_id, { kind: 'estimate_used', partner: names.get(partner!.user_id)!, owedToYou: partnerOwes }, { tripId: bookerId });
         }
       }
     });
